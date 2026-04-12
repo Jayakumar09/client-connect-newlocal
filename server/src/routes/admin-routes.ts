@@ -277,7 +277,7 @@ router.get('/backups/list', requireAdmin, async (_req: Request, res: Response) =
       console.error(`${LOG_PREFIX} Error fetching backups:`, error.message);
       throw error;
     }
-    
+     
     const formattedBackups = (backups || []).map(formatBackupHistoryEntry);
     
     const retentionStatus = await backupRetentionService.getRetentionStatus();
@@ -290,12 +290,12 @@ router.get('/backups/list', requireAdmin, async (_req: Request, res: Response) =
         backups: formattedBackups,
         retention: {
           policy: `${BACKUP_RETENTION_COUNT} backups (Auto-managed)`,
-          totalBackups: retentionStatus.totalBackups,
+          totalBackups: retentionStatus.totalSuccessfulBackups,
           backupsToKeep: retentionStatus.backupsToKeep,
           backupsToDelete: retentionStatus.backupsToDelete,
           isCompliant: retentionStatus.isCompliant,
-          newestBackup: retentionStatus.newestBackup,
-          oldestBackup: retentionStatus.oldestBackup
+          newestBackup: retentionStatus.newestSuccessfulBackup,
+          oldestBackup: retentionStatus.oldestSuccessfulBackup
         },
         totalSize: backupSizeInfo.totalSize,
         fileCount: backupSizeInfo.fileCount
@@ -329,12 +329,12 @@ router.post('/backups/cleanup', requireAdmin, async (req: Request, res: Response
         deletedFiles: result.deletedFiles.length,
         keptBackups: result.keptBackups,
         retentionCount: BACKUP_RETENTION_COUNT,
-        newTotalBackups: finalStatus.totalBackups,
+        newTotalBackups: finalStatus.totalSuccessfulBackups,
         isCompliant: finalStatus.isCompliant,
         errors: result.errors
       },
       message: result.success 
-        ? `Cleanup completed: ${result.deletedBackups} backups deleted. ${finalStatus.totalBackups}/${BACKUP_RETENTION_COUNT} backups remaining.`
+        ? `Cleanup completed: ${result.deletedBackups} backups deleted. ${finalStatus.totalSuccessfulBackups}/${BACKUP_RETENTION_COUNT} backups remaining.`
         : `Cleanup completed with ${result.errors.length} errors`,
       timestamp: new Date().toISOString()
     });
@@ -363,11 +363,11 @@ router.get('/backups/retention-status', requireAdmin, async (_req: Request, res:
           type: 'FIFO'
         },
         current: {
-          totalBackups: status.totalBackups,
+          totalBackups: status.totalSuccessfulBackups,
           backupsToKeep: status.backupsToKeep,
           backupsToDelete: status.backupsToDelete,
-          newestBackup: status.newestBackup,
-          oldestBackup: status.oldestBackup
+          newestBackup: status.newestSuccessfulBackup,
+          oldestBackup: status.oldestSuccessfulBackup
         },
         storage: {
           totalSize: sizeInfo.totalSize,
@@ -377,7 +377,7 @@ router.get('/backups/retention-status', requireAdmin, async (_req: Request, res:
           isCompliant: status.isCompliant,
           status: status.isCompliant ? 'COMPLIANT' : 'NEEDS_CLEANUP',
           message: status.isCompliant 
-            ? `All ${status.totalBackups} backups are within the retention policy of ${BACKUP_RETENTION_COUNT}`
+            ? `All ${status.totalSuccessfulBackups} backups are within the retention policy of ${BACKUP_RETENTION_COUNT}`
             : `${status.backupsToDelete} backups exceed the retention policy of ${BACKUP_RETENTION_COUNT}. Click "Cleanup Old Backups" to remove them.`
         }
       },

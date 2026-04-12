@@ -3,6 +3,7 @@ import { google, drive_v3 } from 'googleapis';
 import fs from 'fs';
 
 const BACKUP_RETENTION_COUNT = parseInt(process.env.BACKUP_RETENTION_COUNT || '7');
+const BACKUP_FOLDER_NAME = process.env.GOOGLE_DRIVE_FOLDER_NAME || 'Vijayalakshmi_Matrimony_Backups';
 
 export interface DriveBackupFile {
   id: string;
@@ -25,6 +26,7 @@ export interface RetentionCleanupResult {
   deletedFiles: DriveBackupFile[];
   errors: string[];
   timestamp: string;
+  dryRun: boolean;
 }
 
 export interface BackupLogEntry {
@@ -35,7 +37,12 @@ export interface BackupLogEntry {
   status: 'SUCCESS' | 'FAILED';
   type: 'FULL' | 'DB_ONLY';
   created_at: string;
+  completed_at?: string;
   drive_folder_id: string | null;
+  drive_folder_name?: string;
+  retention_deleted?: number;
+  error_message?: string;
+  created_by?: string;
 }
 
 interface BackupLogsRow {
@@ -43,22 +50,24 @@ interface BackupLogsRow {
   backup_date: string;
   file_name: string;
   file_size: number;
-  status: string;
+  status: 'SUCCESS' | 'FAILED' | 'completed' | 'failed' | 'in_progress';
   type: string;
   created_at: string;
-  drive_folder_id: string | null;
-  created_by?: string;
   started_at?: string;
   completed_at?: string;
+  drive_folder_id: string | null;
+  drive_folder_name?: string;
+  created_by?: string;
   error_message?: string;
+  retention_deleted?: number;
   file_count?: number;
   backup_size?: number;
-  retention_deleted?: number;
 }
 
 export class BackupRetentionService {
   private supabase: SupabaseClient;
   private drive: drive_v3.Drive | null = null;
+  private rootFolderId: string | null = null;
 
   constructor() {
     this.supabase = createClient(
@@ -73,10 +82,9 @@ export class BackupRetentionService {
       if (!keyPath) {
         throw new Error('GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY_PATH environment variable is not set');
       }
+      const credentials = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
       const auth = new google.auth.GoogleAuth({
-        credentials: JSON.parse(
-          fs.readFileSync(keyPath, 'utf8')
-        ),
+        credentials,
         scopes: ['https://www.googleapis.com/auth/drive']
       });
       this.drive = google.drive({ version: 'v3', auth });
@@ -84,12 +92,26 @@ export class BackupRetentionService {
     return this.drive;
   }
 
-  private getRootFolderId(): string {
-    return process.env.GOOGLE_DRIVE_FOLDER_ID || '';
-  }
+  async initializeRootFolderId(): Promise<string | null> {
+    if (this.rootFolderId) return this.rootFolderId;
+    
+    const configuredId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    if (configuredId) {
+      this.rootFolderId = configuredId;
+      return this.rootFolderId;
+    }
 
-  async initializeBackupLogsTable(): Promise<void> {
-    console.log('[BackupRetention] Backup logs table should exist - skipping initialization');
+    try {
+      const folders = await this.listDriveBackups();
+      if (folders.length > 0) {
+        this.rootFolderId = folders[0].id;
+        return this.rootFolderId;
+      }
+    } catch (err) {
+      console.log('[BackupRetention] Could not determine root folder ID');
+    }
+    
+    return null;
   }
 
   async logBackupEntry(entry: Omit<BackupLogEntry, 'id' | 'created_at'>): Promise<string | null> {
@@ -103,7 +125,10 @@ export class BackupRetentionService {
           status: entry.status,
           type: entry.type,
           drive_folder_id: entry.drive_folder_id,
-          created_by: 'system'
+          drive_folder_name: entry.drive_folder_name,
+          created_by: entry.created_by || 'system',
+          completed_at: entry.completed_at || null,
+          error_message: entry.error_message || null
         } as any)
         .select('id')
         .single();
@@ -120,49 +145,91 @@ export class BackupRetentionService {
     }
   }
 
-  async getBackupLogs(limit: number = 10): Promise<BackupLogEntry[]> {
+  async updateBackupLog(id: string, updates: Partial<BackupLogsRow>): Promise<boolean> {
     try {
-      const { data, error } = await this.supabase
+      const { error } = await this.supabase
         .from('backup_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
+        .update(updates as any)
+        .eq('id', id);
 
       if (error) {
-        console.error('[BackupRetention] Error fetching backup logs:', error);
-        return [];
+        console.error('[BackupRetention] Error updating backup log:', error);
+        return false;
       }
-
-      return (data || []) as BackupLogEntry[];
+      return true;
     } catch (err) {
-      console.error('[BackupRetention] Error fetching backup logs:', err);
-      return [];
+      console.error('[BackupRetention] Error updating backup log:', err);
+      return false;
     }
   }
 
-  async getCompletedBackups(limit: number = BACKUP_RETENTION_COUNT): Promise<BackupLogsRow[]> {
+  async getSuccessfulBackups(limit?: number): Promise<BackupLogsRow[]> {
     try {
-      const { data, error } = await this.supabase
+      let query = this.supabase
         .from('backup_logs')
         .select('*')
-        .eq('status', 'completed')
-        .order('started_at', { ascending: false })
-        .limit(limit);
+        .in('status', ['SUCCESS', 'completed'])
+        .order('completed_at', { ascending: false });
+      
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
-        console.error('[BackupRetention] Error fetching completed backups:', error);
+        console.error('[BackupRetention] Error fetching successful backups:', error);
         return [];
       }
 
       return (data || []) as BackupLogsRow[];
     } catch (err) {
-      console.error('[BackupRetention] Error fetching completed backups:', err);
+      console.error('[BackupRetention] Error fetching successful backups:', err);
       return [];
     }
   }
 
+  async getAllBackups(): Promise<BackupLogsRow[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('backup_logs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[BackupRetention] Error fetching all backups:', error);
+        return [];
+      }
+
+      return (data || []) as BackupLogsRow[];
+    } catch (err) {
+      console.error('[BackupRetention] Error fetching all backups:', err);
+      return [];
+    }
+  }
+
+  async getBackupById(id: string): Promise<BackupLogsRow | null> {
+    try {
+      const { data, error } = await this.supabase
+        .from('backup_logs')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('[BackupRetention] Error fetching backup by id:', error);
+        return null;
+      }
+
+      return data as BackupLogsRow;
+    } catch (err) {
+      console.error('[BackupRetention] Error fetching backup by id:', err);
+      return null;
+    }
+  }
+
   async listDriveBackups(): Promise<DriveBackupFolder[]> {
-    const rootFolderId = this.getRootFolderId();
+    const rootFolderId = await this.initializeRootFolderId();
     
     if (!rootFolderId) {
       console.log('[BackupRetention] No root folder ID configured');
@@ -182,12 +249,7 @@ export class BackupRetentionService {
         createdTime: file.createdTime!
       }));
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      if (errorMsg.includes('GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY_PATH')) {
-        console.log('[BackupRetention] Google Drive not configured. Skipping Drive backup listing.');
-      } else {
-        console.error('[BackupRetention] Error listing drive backups:', err);
-      }
+      console.error('[BackupRetention] Error listing drive backups:', err);
       return [];
     }
   }
@@ -223,85 +285,134 @@ export class BackupRetentionService {
     }
   }
 
-  async deleteDriveFolder(folderId: string): Promise<boolean> {
+  async deleteEntireBackupSet(folderId: string, folderName: string): Promise<{ success: boolean; deletedFiles: number; errors: string[] }> {
+    const result = { success: true, deletedFiles: 0, errors: [] as string[] };
+    
+    console.log(`[BackupRetention] Deleting backup set: ${folderName} (${folderId})`);
+
     try {
       const files = await this.listFilesInFolder(folderId);
       
       for (const file of files) {
-        await this.deleteDriveFile(file.id);
+        const deleted = await this.deleteDriveFile(file.id);
+        if (deleted) {
+          result.deletedFiles++;
+          console.log(`[BackupRetention]   Deleted: ${file.name}`);
+        } else {
+          result.errors.push(`Failed to delete: ${file.name}`);
+        }
       }
-      
-      await this.getDriveClient().files.delete({ fileId: folderId });
-      return true;
+
+      const folderDeleted = await this.deleteDriveFile(folderId);
+      if (folderDeleted) {
+        console.log(`[BackupRetention]   Deleted folder: ${folderName}`);
+      } else {
+        result.errors.push(`Failed to delete folder: ${folderName}`);
+        result.success = false;
+      }
     } catch (err) {
-      console.error('[BackupRetention] Error deleting drive folder:', err);
-      return false;
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      result.errors.push(errorMsg);
+      result.success = false;
     }
+
+    return result;
   }
 
-  async enforceFIFORetention(): Promise<RetentionCleanupResult> {
+  async enforceFIFORetention(options: { dryRun?: boolean } = {}): Promise<RetentionCleanupResult> {
     const result: RetentionCleanupResult = {
       success: false,
       keptBackups: 0,
       deletedBackups: 0,
       deletedFiles: [],
       errors: [],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      dryRun: options.dryRun || false
     };
 
     console.log('[BackupRetention] Starting FIFO retention enforcement...');
-    console.log(`[BackupRetention] Retention policy: Keep latest ${BACKUP_RETENTION_COUNT} backups`);
+    console.log(`[BackupRetention] Policy: Keep latest ${BACKUP_RETENTION_COUNT} successful backups`);
+    console.log(`[BackupRetention] Mode: ${options.dryRun ? 'DRY RUN' : 'LIVE'}`);
 
     try {
-      const folders = await this.listDriveBackups();
+      const successfulBackups = await this.getSuccessfulBackups();
       
-      if (folders.length === 0) {
-        console.log('[BackupRetention] No backups found in Drive');
+      if (successfulBackups.length === 0) {
+        console.log('[BackupRetention] No successful backups found in metadata table');
         result.success = true;
         result.keptBackups = 0;
         return result;
       }
 
-      console.log(`[BackupRetention] Found ${folders.length} backup folders in Drive`);
+      console.log(`[BackupRetention] Found ${successfulBackups.length} successful backups in metadata`);
 
-      if (folders.length <= BACKUP_RETENTION_COUNT) {
-        console.log(`[BackupRetention] Total backups (${folders.length}) <= retention count (${BACKUP_RETENTION_COUNT}). No cleanup needed.`);
+      const backupsWithDriveFolder = successfulBackups.filter(b => b.drive_folder_id);
+      const backupsWithoutDriveFolder = successfulBackups.filter(b => !b.drive_folder_id);
+
+      const sortedByTime = backupsWithDriveFolder.sort((a, b) => {
+        const timeA = a.completed_at || a.created_at;
+        const timeB = b.completed_at || b.created_at;
+        return new Date(timeB).getTime() - new Date(timeA).getTime();
+      });
+
+      if (sortedByTime.length <= BACKUP_RETENTION_COUNT) {
+        console.log(`[BackupRetention] Total successful backups (${sortedByTime.length}) <= retention count (${BACKUP_RETENTION_COUNT}). No cleanup needed.`);
         result.success = true;
-        result.keptBackups = folders.length;
+        result.keptBackups = sortedByTime.length;
         return result;
       }
 
-      const foldersToDelete = folders.slice(BACKUP_RETENTION_COUNT);
-      const keptFolders = folders.slice(0, BACKUP_RETENTION_COUNT);
+      const backupsToDelete = sortedByTime.slice(BACKUP_RETENTION_COUNT);
+      const backupsToKeep = sortedByTime.slice(0, BACKUP_RETENTION_COUNT);
 
-      console.log(`[BackupRetention] Keeping ${keptFolders.length} most recent backups`);
-      console.log(`[BackupRetention] Deleting ${foldersToDelete.length} oldest backups`);
+      console.log(`[BackupRetention] Keeping ${backupsToKeep.length} most recent backups:`);
+      for (const backup of backupsToKeep) {
+        const time = backup.completed_at || backup.created_at;
+        console.log(`[BackupRetention]   ✓ ${backup.backup_date} (${backup.drive_folder_name || backup.drive_folder_id}) - ${time}`);
+      }
 
-      for (const folder of foldersToDelete) {
-        console.log(`[BackupRetention] Deleting backup folder: ${folder.name} (${folder.id})`);
-        
-        const files = await this.listFilesInFolder(folder.id);
-        
-        for (const file of files) {
-          const deleted = await this.deleteDriveFile(file.id);
-          if (deleted) {
-            result.deletedFiles.push(file);
-            result.deletedBackups++;
-          }
+      console.log(`\n[BackupRetention] Deleting ${backupsToDelete.length} oldest backups:`);
+      for (const backup of backupsToDelete) {
+        const time = backup.completed_at || backup.created_at;
+        console.log(`[BackupRetention]   ✗ ${backup.backup_date} (${backup.drive_folder_name || backup.drive_folder_id}) - ${time}`);
+      }
+
+      if (options.dryRun) {
+        console.log('\n[BackupRetention] DRY RUN - No actual deletions performed');
+        result.keptBackups = backupsToKeep.length;
+        result.deletedBackups = backupsToDelete.length;
+        result.success = true;
+        return result;
+      }
+
+      for (const backup of backupsToDelete) {
+        if (!backup.drive_folder_id) {
+          console.log(`[BackupRetention] Skipping backup without Drive folder: ${backup.backup_date}`);
+          continue;
         }
 
-        const folderDeleted = await this.deleteDriveFolder(folder.id);
-        if (folderDeleted) {
-          console.log(`[BackupRetention] ✓ Deleted folder: ${folder.name}`);
+        const deleteResult = await this.deleteEntireBackupSet(backup.drive_folder_id, backup.drive_folder_name || backup.drive_folder_id);
+        
+        if (deleteResult.success) {
+          result.deletedBackups++;
+          result.deletedFiles.push(...(await this.listFilesInFolder(backup.drive_folder_id)));
+          
+          await this.updateBackupLog(backup.id, {
+            status: 'deleted_by_retention',
+            retention_deleted: 1
+          } as any);
         } else {
-          result.errors.push(`Failed to delete folder: ${folder.name}`);
+          result.errors.push(...deleteResult.errors);
         }
       }
 
       result.success = result.errors.length === 0;
-      result.keptBackups = keptFolders.length;
+      result.keptBackups = backupsToKeep.length;
 
-      console.log(`[BackupRetention] FIFO cleanup complete: kept ${result.keptBackups}, deleted ${result.deletedBackups}`);
+      console.log(`\n[BackupRetention] FIFO cleanup complete:`);
+      console.log(`[BackupRetention]   Kept: ${result.keptBackups}`);
+      console.log(`[BackupRetention]   Deleted: ${result.deletedBackups}`);
+      console.log(`[BackupRetention]   Files deleted: ${result.deletedFiles.length}`);
       
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
@@ -313,54 +424,40 @@ export class BackupRetentionService {
     return result;
   }
 
-  async cleanupOrphanedFiles(): Promise<{ deleted: number; errors: string[] }> {
-    const result = { deleted: 0, errors: [] as string[] };
-    
-    console.log('[BackupRetention] Checking for orphaned files...');
-
-    try {
-      const folders = await this.listDriveBackups();
-      
-      for (const folder of folders) {
-        const files = await this.listFilesInFolder(folder.id);
-        
-        for (const file of files) {
-          if (!file.name.endsWith('.zip') && !file.name.endsWith('.json') && !file.name.endsWith('.md')) {
-            console.log(`[BackupRetention] Deleting orphaned file: ${file.name}`);
-            const deleted = await this.deleteDriveFile(file.id);
-            if (deleted) result.deleted++;
-          }
-        }
-      }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      result.errors.push(errorMsg);
-    }
-
-    return result;
-  }
-
   async getRetentionStatus(): Promise<{
-    totalBackups: number;
+    totalSuccessfulBackups: number;
+    totalBackupsInDrive: number;
     retentionCount: number;
     backupsToKeep: number;
     backupsToDelete: number;
-    oldestBackup: string | null;
-    newestBackup: string | null;
+    oldestSuccessfulBackup: string | null;
+    newestSuccessfulBackup: string | null;
     isCompliant: boolean;
+    nextCleanupDue: string | null;
   }> {
-    const folders = await this.listDriveBackups();
-    const totalBackups = folders.length;
-    const backupsToDelete = Math.max(0, totalBackups - BACKUP_RETENTION_COUNT);
+    const successfulBackups = await this.getSuccessfulBackups();
+    const driveBackups = await this.listDriveBackups();
+    
+    const sortedByTime = successfulBackups
+      .filter(b => b.drive_folder_id)
+      .sort((a, b) => {
+        const timeA = a.completed_at || a.created_at;
+        const timeB = b.completed_at || b.created_at;
+        return new Date(timeB).getTime() - new Date(timeA).getTime();
+      });
+
+    const backupsToDelete = Math.max(0, sortedByTime.length - BACKUP_RETENTION_COUNT);
     
     return {
-      totalBackups,
+      totalSuccessfulBackups: successfulBackups.length,
+      totalBackupsInDrive: driveBackups.length,
       retentionCount: BACKUP_RETENTION_COUNT,
-      backupsToKeep: Math.min(totalBackups, BACKUP_RETENTION_COUNT),
+      backupsToKeep: Math.min(sortedByTime.length, BACKUP_RETENTION_COUNT),
       backupsToDelete,
-      oldestBackup: folders.length > 0 ? folders[folders.length - 1].createdTime : null,
-      newestBackup: folders.length > 0 ? folders[0].createdTime : null,
-      isCompliant: totalBackups <= BACKUP_RETENTION_COUNT
+      oldestSuccessfulBackup: sortedByTime.length > 0 ? (sortedByTime[sortedByTime.length - 1].completed_at || sortedByTime[sortedByTime.length - 1].created_at) : null,
+      newestSuccessfulBackup: sortedByTime.length > 0 ? (sortedByTime[0].completed_at || sortedByTime[0].created_at) : null,
+      isCompliant: backupsToDelete === 0,
+      nextCleanupDue: backupsToDelete > 0 ? 'Now - cleanup recommended' : null
     };
   }
 
@@ -379,6 +476,40 @@ export class BackupRetentionService {
     }
 
     return { totalSize, fileCount };
+  }
+
+  async cleanupOrphanedDriveFolders(): Promise<{ deleted: number; errors: string[] }> {
+    const result = { deleted: 0, errors: [] as string[] };
+    
+    console.log('[BackupRetention] Checking for orphaned folders not in metadata...');
+
+    try {
+      const successfulBackups = await this.getSuccessfulBackups();
+      const knownFolderIds = new Set(successfulBackups.filter(b => b.drive_folder_id).map(b => b.drive_folder_id));
+      
+      const driveFolders = await this.listDriveBackups();
+      
+      for (const folder of driveFolders) {
+        if (!knownFolderIds.has(folder.id)) {
+          console.log(`[BackupRetention] Found orphaned folder: ${folder.name} (${folder.id})`);
+          
+          if (!folder.name.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            console.log(`[BackupRetention] Deleting non-backup folder: ${folder.name}`);
+            const deleteResult = await this.deleteEntireBackupSet(folder.id, folder.name);
+            if (deleteResult.success) {
+              result.deleted++;
+            } else {
+              result.errors.push(...deleteResult.errors);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      result.errors.push(errorMsg);
+    }
+
+    return result;
   }
 }
 
