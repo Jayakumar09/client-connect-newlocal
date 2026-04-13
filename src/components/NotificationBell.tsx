@@ -58,17 +58,40 @@ export const NotificationBell = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data } = await supabase
+    const defaultPrefs = {
+      sound_enabled: true,
+      vibration_enabled: true
+    };
+
+    const { data, error } = await supabase
       .from("notification_preferences")
       .select("sound_enabled, vibration_enabled")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
+
+    if (error) {
+      console.debug("[NotificationBell] Query error (normal for new users):", user.id, error.message);
+    }
 
     if (data) {
       preferencesRef.current = {
         sound_enabled: data.sound_enabled,
         vibration_enabled: data.vibration_enabled,
       };
+    } else {
+      console.debug("[NotificationBell] No preferences found → using defaults:", user.id);
+      
+      // Auto-insert default preferences for new users
+      await supabase.from("notification_preferences").insert({
+        user_id: user.id,
+        ...defaultPrefs
+      }).then(({ error: insertError }) => {
+        if (insertError) {
+          console.debug("[NotificationBell] Could not insert defaults:", insertError.message);
+        }
+      });
+      
+      preferencesRef.current = defaultPrefs;
     }
   }, []);
 

@@ -63,6 +63,13 @@ const Browse = () => {
       return;
     }
     setCurrentUserId(session.user.id);
+    
+    const isAdmin = session.user.email === "vijayalakshmijayakumar45@gmail.com";
+    if (isAdmin) {
+      navigate("/dashboard");
+      return;
+    }
+    
     await fetchProfiles();
   };
 

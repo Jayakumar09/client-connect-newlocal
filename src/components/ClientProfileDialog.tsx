@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { Tables, Constants } from "@/integrations/supabase/types";
+import { Tables } from "@/integrations/supabase/types";
+import { Shield, CreditCard, Eye, EyeOff } from "lucide-react";
 
 type ClientProfile = Tables<"client_profiles">;
 
@@ -21,50 +19,13 @@ interface ClientProfileDialogProps {
 
 const ClientProfileDialog = ({ open, onClose, profile }: ClientProfileDialogProps) => {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<Partial<ClientProfile>>({
-    full_name: "",
-    gender: "male",
-    date_of_birth: "",
-    religion: "hindu",
-    marital_status: "never_married",
-    phone_number: "",
-    email: "",
-    education: "",
-    occupation: "",
-    annual_income: "",
-    city: "",
-    state: "",
-    country: "India",
-    height_cm: null,
-    weight_kg: null,
-    complexion: null,
-    caste: "",
-    sub_caste: "",
-    mother_tongue: "",
-    star: "",
-    rasi: "",
-    birth_time: "",
-    birth_place: "",
-    working_location: "",
-    father_name: "",
-    father_occupation: "",
-    mother_name: "",
-    mother_occupation: "",
-    number_of_brothers: 0,
-    number_of_sisters: 0,
-    about_me: "",
-    partner_expectations: "",
-    show_phone_number: false,
-    is_profile_active: true,
-    payment_status: "free",
-  });
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'non_paid' | 'free'>('free');
+  const [isProfileActive, setIsProfileActive] = useState(true);
 
   useEffect(() => {
     if (profile) {
-      setFormData({
-        ...profile,
-        date_of_birth: profile.date_of_birth ? new Date(profile.date_of_birth).toISOString().split('T')[0] : "",
-      });
+      setPaymentStatus((profile.payment_status as 'paid' | 'non_paid' | 'free') || 'free');
+      setIsProfileActive(profile.is_profile_active ?? true);
     }
   }, [profile]);
 
@@ -78,405 +39,158 @@ const ClientProfileDialog = ({ open, onClose, profile }: ClientProfileDialogProp
         return;
       }
 
-      const { error } = await supabase
-        .from("client_profiles")
-        .update({
-          ...formData,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", profile.id);
+      const previousStatus = profile.payment_status;
+      console.log('[ClientProfileDialog] Updating payment status via API:', {
+        profileId: profile.id,
+        userId: profile.user_id,
+        previousPaymentStatus: previousStatus,
+        newPaymentStatus: paymentStatus,
+        isProfileActive: isProfileActive,
+      });
 
-      if (error) throw error;
+      const apiKey = import.meta.env.VITE_ADMIN_API_KEY;
+      const apiUrl = import.meta.env.VITE_BACKUP_API_URL || 'http://localhost:3001';
+      
+      if (!apiKey) {
+        console.error('[ClientProfileDialog] Admin API key not configured');
+        toast.error("Admin API key not configured. Please contact administrator.");
+        setLoading(false);
+        return;
+      }
 
-      toast.success("Profile updated successfully");
+      const response = await fetch(`${apiUrl}/api/admin/update-client-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          profile_id: profile.id,
+          payment_status: paymentStatus,
+          is_profile_active: isProfileActive,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        console.error('[ClientProfileDialog] API update failed:', result);
+        throw new Error(result.error || 'Failed to update payment status');
+      }
+
+      console.log('[ClientProfileDialog] Update successful via API:', {
+        profileId: profile.id,
+        userId: profile.user_id,
+        previousPaymentStatus: previousStatus,
+        newPaymentStatus: result.data.payment_status,
+        serverUpdatedAt: result.data.updated_at,
+      });
+
+      toast.success("Client profile updated successfully");
       onClose();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update profile");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to update profile";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (field: keyof ClientProfile, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+      <DialogContent className="max-w-md max-h-[90vh] p-0">
         <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="text-2xl">Edit Client Profile</DialogTitle>
+          <DialogTitle className="text-xl flex items-center gap-2">
+            <Shield className="h-5 w-5 text-blue-600" />
+            Admin Controls
+          </DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[calc(90vh-100px)]">
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Payment Status - Admin Only */}
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <h3 className="font-semibold text-blue-800 mb-3">Admin Controls</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Payment Status</Label>
-                  <Select
-                    value={formData.payment_status || "free"}
-                    onValueChange={(value) => handleInputChange("payment_status", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="paid">Paid {"{P}"}</SelectItem>
-                      <SelectItem value="non_paid">Non Paid {"{NP}"}</SelectItem>
-                      <SelectItem value="free">Free {"{F}"}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Profile Status</Label>
-                  <div className="flex items-center gap-2 pt-2">
-                    <Switch
-                      checked={formData.is_profile_active ?? true}
-                      onCheckedChange={(checked) => handleInputChange("is_profile_active", checked)}
-                    />
-                    <span className="text-sm">{formData.is_profile_active ? "Active" : "Inactive"}</span>
+            {profile && (
+              <div className="bg-muted/50 rounded-lg p-4 mb-4">
+                <p className="font-medium text-lg">{profile.full_name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {profile.email || profile.phone_number || 'No contact info'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Profile ID: {profile.id.slice(0, 8)}...
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <h3 className="font-semibold text-base flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                Payment Status
+              </h3>
+              <div className="space-y-2">
+                <Label>Payment Status</Label>
+                <Select
+                  value={paymentStatus}
+                  onValueChange={(value: 'paid' | 'non_paid' | 'free') => setPaymentStatus(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="paid">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                        Paid {"{P}"}
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="non_paid">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                        Non Paid {"{NP}"}
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="free">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                        Free {"{F}"}
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Only admin can modify payment status
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="font-semibold text-base flex items-center gap-2">
+                {isProfileActive ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                Profile Visibility
+              </h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Profile Active</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {isProfileActive 
+                        ? "Profile is visible to other users" 
+                        : "Profile is hidden from browse and search"}
+                    </p>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Basic Information */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg border-b pb-2">Basic Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Full Name *</Label>
-                  <Input
-                    value={formData.full_name || ""}
-                    onChange={(e) => handleInputChange("full_name", e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Gender *</Label>
-                  <Select
-                    value={formData.gender || "male"}
-                    onValueChange={(value) => handleInputChange("gender", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Constants.public.Enums.gender.map((g) => (
-                        <SelectItem key={g} value={g}>{g.charAt(0).toUpperCase() + g.slice(1)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Date of Birth *</Label>
-                  <Input
-                    type="date"
-                    value={formData.date_of_birth || ""}
-                    onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Marital Status *</Label>
-                  <Select
-                    value={formData.marital_status || "never_married"}
-                    onValueChange={(value) => handleInputChange("marital_status", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Constants.public.Enums.marital_status.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Height (cm)</Label>
-                  <Input
-                    type="number"
-                    value={formData.height_cm || ""}
-                    onChange={(e) => handleInputChange("height_cm", e.target.value ? parseInt(e.target.value) : null)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Weight (kg)</Label>
-                  <Input
-                    type="number"
-                    value={formData.weight_kg || ""}
-                    onChange={(e) => handleInputChange("weight_kg", e.target.value ? parseInt(e.target.value) : null)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Complexion</Label>
-                  <Select
-                    value={formData.complexion || ""}
-                    onValueChange={(value) => handleInputChange("complexion", value || null)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select complexion" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Constants.public.Enums.complexion.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Contact Information */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg border-b pb-2">Contact Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Phone Number</Label>
-                  <Input
-                    value={formData.phone_number || ""}
-                    onChange={(e) => handleInputChange("phone_number", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={formData.email || ""}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center gap-2 col-span-2">
                   <Switch
-                    checked={formData.show_phone_number ?? false}
-                    onCheckedChange={(checked) => handleInputChange("show_phone_number", checked)}
-                  />
-                  <Label>Show phone number to other users</Label>
-                </div>
-              </div>
-            </div>
-
-            {/* Religious Information */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg border-b pb-2">Religious Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Religion *</Label>
-                  <Select
-                    value={formData.religion || "hindu"}
-                    onValueChange={(value) => handleInputChange("religion", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Constants.public.Enums.religion.map((r) => (
-                        <SelectItem key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Caste</Label>
-                  <Input
-                    value={formData.caste || ""}
-                    onChange={(e) => handleInputChange("caste", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Sub Caste</Label>
-                  <Input
-                    value={formData.sub_caste || ""}
-                    onChange={(e) => handleInputChange("sub_caste", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Mother Tongue</Label>
-                  <Input
-                    value={formData.mother_tongue || ""}
-                    onChange={(e) => handleInputChange("mother_tongue", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Star</Label>
-                  <Input
-                    value={formData.star || ""}
-                    onChange={(e) => handleInputChange("star", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Rasi</Label>
-                  <Input
-                    value={formData.rasi || ""}
-                    onChange={(e) => handleInputChange("rasi", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Birth Time</Label>
-                  <Input
-                    type="time"
-                    value={formData.birth_time || ""}
-                    onChange={(e) => handleInputChange("birth_time", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Birth Place</Label>
-                  <Input
-                    value={formData.birth_place || ""}
-                    onChange={(e) => handleInputChange("birth_place", e.target.value)}
+                    checked={isProfileActive}
+                    onCheckedChange={setIsProfileActive}
                   />
                 </div>
               </div>
             </div>
 
-            {/* Professional Information */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg border-b pb-2">Professional Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Education</Label>
-                  <Input
-                    value={formData.education || ""}
-                    onChange={(e) => handleInputChange("education", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Occupation</Label>
-                  <Input
-                    value={formData.occupation || ""}
-                    onChange={(e) => handleInputChange("occupation", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Annual Income</Label>
-                  <Input
-                    value={formData.annual_income || ""}
-                    onChange={(e) => handleInputChange("annual_income", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Working Location</Label>
-                  <Input
-                    value={formData.working_location || ""}
-                    onChange={(e) => handleInputChange("working_location", e.target.value)}
-                  />
-                </div>
-              </div>
+            <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>Note:</strong> Admin can only modify payment status and profile visibility. 
+                All other profile details must be edited by the client from their own dashboard.
+              </p>
             </div>
 
-            {/* Location */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg border-b pb-2">Location</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>City</Label>
-                  <Input
-                    value={formData.city || ""}
-                    onChange={(e) => handleInputChange("city", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>State</Label>
-                  <Input
-                    value={formData.state || ""}
-                    onChange={(e) => handleInputChange("state", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Country</Label>
-                  <Input
-                    value={formData.country || "India"}
-                    onChange={(e) => handleInputChange("country", e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Family Information */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg border-b pb-2">Family Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Father's Name</Label>
-                  <Input
-                    value={formData.father_name || ""}
-                    onChange={(e) => handleInputChange("father_name", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Father's Occupation</Label>
-                  <Input
-                    value={formData.father_occupation || ""}
-                    onChange={(e) => handleInputChange("father_occupation", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Mother's Name</Label>
-                  <Input
-                    value={formData.mother_name || ""}
-                    onChange={(e) => handleInputChange("mother_name", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Mother's Occupation</Label>
-                  <Input
-                    value={formData.mother_occupation || ""}
-                    onChange={(e) => handleInputChange("mother_occupation", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Number of Brothers</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={formData.number_of_brothers ?? 0}
-                    onChange={(e) => handleInputChange("number_of_brothers", parseInt(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Number of Sisters</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={formData.number_of_sisters ?? 0}
-                    onChange={(e) => handleInputChange("number_of_sisters", parseInt(e.target.value) || 0)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* About & Expectations */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg border-b pb-2">About & Expectations</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>About Me</Label>
-                  <Textarea
-                    value={formData.about_me || ""}
-                    onChange={(e) => handleInputChange("about_me", e.target.value)}
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Partner Expectations</Label>
-                  <Textarea
-                    value={formData.partner_expectations || ""}
-                    onChange={(e) => handleInputChange("partner_expectations", e.target.value)}
-                    rows={3}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Submit Button */}
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel

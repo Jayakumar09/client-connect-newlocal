@@ -65,15 +65,21 @@ interface BackupLogsRow {
 }
 
 export class BackupRetentionService {
-  private supabase: SupabaseClient;
+  private supabase: SupabaseClient | null = null;
   private drive: drive_v3.Drive | null = null;
   private rootFolderId: string | null = null;
 
-  constructor() {
-    this.supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+  private getSupabase(): SupabaseClient {
+    if (!this.supabase) {
+      if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        throw new Error('Supabase environment variables not configured');
+      }
+      this.supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+    }
+    return this.supabase;
   }
 
   private getDriveClient(): drive_v3.Drive {
@@ -116,7 +122,7 @@ export class BackupRetentionService {
 
   async logBackupEntry(entry: Omit<BackupLogEntry, 'id' | 'created_at'>): Promise<string | null> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await this.getSupabase()
         .from('backup_logs')
         .insert({
           backup_date: entry.backup_date,
@@ -191,7 +197,7 @@ export class BackupRetentionService {
 
   async getAllBackups(): Promise<BackupLogsRow[]> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await this.getSupabase()
         .from('backup_logs')
         .select('*')
         .order('created_at', { ascending: false });
@@ -210,7 +216,7 @@ export class BackupRetentionService {
 
   async getBackupById(id: string): Promise<BackupLogsRow | null> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await this.getSupabase()
         .from('backup_logs')
         .select('*')
         .eq('id', id)

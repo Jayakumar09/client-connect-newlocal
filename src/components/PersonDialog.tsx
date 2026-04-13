@@ -168,9 +168,20 @@ const PersonDialog = ({ open, onClose, person }: PersonDialogProps) => {
 
       const { error: uploadError } = await supabase.storage
         .from("person-images")
-        .upload(fileName, file);
+        .upload(fileName, file, { upsert: true });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.warn(`Upload warning for ${fileName}:`, uploadError.message);
+        // Try to get existing URL if upload fails
+        const { data: existingUrl } = await supabase.storage
+          .from("person-images")
+          .createSignedUrl(fileName, 31536000);
+        if (existingUrl) {
+          uploadedUrls.push(existingUrl.signedUrl);
+          continue;
+        }
+        throw uploadError;
+      }
 
       // Generate signed URL (valid for 1 year)
       const { data: signedData, error: signedError } = await supabase.storage

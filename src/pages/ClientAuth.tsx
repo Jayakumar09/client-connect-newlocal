@@ -28,7 +28,10 @@ const emailSignupSchema = z.object({
 });
 
 const phoneSignupSchema = z.object({
-  phone: z.string().min(10, { message: "Invalid phone number" }),
+  phone: z.string()
+    .min(10, { message: "Phone number must be at least 10 digits" })
+    .max(10, { message: "Phone number must be exactly 10 digits" })
+    .regex(/^[6-9]\d{9}$/, { message: "Invalid Indian phone number. Must be 10 digits starting with 6-9" }),
   countryCode: z.string(),
   fullName: z.string().min(2, { message: "Name must be at least 2 characters" }),
   gender: z.enum(['male', 'female', 'other'], { required_error: "Gender is required" }),
@@ -50,6 +53,13 @@ const ClientAuth = () => {
   const [countryCode, setCountryCode] = useState("+91");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [pendingPhoneSignup, setPendingPhoneSignup] = useState<{
+    fullName: string;
+    gender: string;
+    dateOfBirth: string;
+    religion: string;
+    profileCreatedFor: string;
+  } | null>(null);
   
   // Profile fields
   const [fullName, setFullName] = useState("");
@@ -92,9 +102,22 @@ const ClientAuth = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        // Check if this is an admin user and redirect appropriately
         const isAdmin = session.user.email === "vijayalakshmijayakumar45@gmail.com";
-        navigate(isAdmin ? "/" : "/browse");
+        if (isAdmin) {
+          navigate("/dashboard");
+        } else {
+          const { data: profile } = await supabase
+            .from("client_profiles")
+            .select("id")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+          
+          if (profile) {
+            navigate("/browse");
+          } else {
+            navigate("/client-profile");
+          }
+        }
       }
     };
     checkSession();
@@ -114,27 +137,123 @@ const ClientAuth = () => {
         religion, 
         profileCreatedFor 
       });
-      
-      const redirectUrl = `${window.location.origin}/browse`;
 
-      const { error } = await supabase.auth.signUp({
+      // Check if email already exists in client_profiles
+      const { data: existingProfile, error: checkError } = await supabase
+        .from("client_profiles")
+        .select("id, email")
+        .eq("email", validated.email.toLowerCase())
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("[ClientAuth] Error checking existing profile:", checkError);
+      }
+
+      if (existingProfile) {
+        toast.error("An account with this email already exists. Please sign in instead.");
+        setLoading(false);
+        return;
+      }
+
+      // Step 1: Create the auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: validated.email,
         password: validated.password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            full_name: validated.fullName,
-            gender: validated.gender,
-            date_of_birth: validated.dateOfBirth,
-            religion: validated.religion,
-            profile_created_for: validated.profileCreatedFor,
-          },
-        },
       });
 
-      if (error) throw error;
+      if (authError) {
+        console.error("[ClientAuth] Auth signup error:", {
+          message: authError.message,
+          status: authError.status,
+          code: authError.code,
+          details: authError,
+        });
+        throw authError;
+      }
+      
+      if (!authData.user) {
+        throw new Error("Failed to create user account - no user data returned");
+      }
 
-      toast.success("Account created successfully! You can now sign in.");
+      console.log("[ClientAuth] User created, ID:", authData.user.id);
+
+      // Step 2: Immediately sign in to get a valid session with JWT
+      // This is required because RLS policies need auth.uid() to match user_id
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: validated.email,
+        password: validated.password,
+      });
+
+      if (signInError) {
+        // If sign-in fails (e.g., email confirmation required), handle gracefully
+        console.error("[ClientAuth] Sign-in after signup failed:", {
+          message: signInError.message,
+          status: signInError.status,
+          code: signInError.code,
+          emailConfirmed: authData.user.email_confirmed_at,
+        });
+        
+        // If email confirmation is required, prompt user
+        if (signInError.message.includes("Email not confirmed") || 
+            signInError.status === 400) {
+          toast.success("Account created! Please check your email and click the confirmation link. Then sign in to complete your profile.");
+          // Reset form and switch to sign in tab
+          setEmail("");
+          setPassword("");
+          setFullName("");
+          setGender("");
+          setDateOfBirth("");
+          setReligion("");
+          setProfileCreatedFor("");
+          setLoading(false);
+          return;
+        }
+        
+        throw signInError;
+      }
+
+      console.log("[ClientAuth] Sign-in successful, session obtained");
+
+      // Step 3: Now insert the client profile (we have a valid JWT/session)
+      const { error: profileError } = await supabase
+        .from("client_profiles")
+        .insert({
+          user_id: authData.user.id,
+          full_name: validated.fullName,
+          email: validated.email,
+          gender: validated.gender,
+          date_of_birth: validated.dateOfBirth,
+          religion: validated.religion,
+          profile_created_for: validated.profileCreatedFor,
+          country: "India",
+          country_code: "+91",
+          is_profile_active: true,
+          show_phone_number: false,
+          payment_status: "free",
+          created_by: "client",
+        });
+
+      if (profileError) {
+        console.error("[ClientAuth] Profile creation error details:", {
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint,
+          code: profileError.code,
+        });
+        
+        // Check for unique constraint violation (duplicate user_id)
+        if (profileError.code === '23505') {
+          throw new Error("A profile already exists for this account. Please sign in.");
+        }
+        
+        throw new Error(`Failed to create profile: ${profileError.message}`);
+      }
+
+      console.log("[ClientAuth] Profile created successfully");
+
+      toast.success("Account created successfully! Redirecting to complete your profile...");
+      navigate("/client-profile");
+      
       // Reset form
       setEmail("");
       setPassword("");
@@ -147,7 +266,11 @@ const ClientAuth = () => {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
       } else if (error instanceof Error) {
+        console.error("[ClientAuth] Signup error:", error.message);
         toast.error(error.message);
+      } else {
+        console.error("[ClientAuth] Unknown signup error:", error);
+        toast.error("An unexpected error occurred. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -167,7 +290,35 @@ const ClientAuth = () => {
       if (error) throw error;
 
       toast.success("Signed in successfully!");
-      navigate("/browse");
+      
+      // Check if admin
+      const isAdmin = email === 'vijayalakshmijayakumar45@gmail.com';
+      
+      if (isAdmin) {
+        navigate("/dashboard");
+      } else {
+        // Check if user has a profile
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile, error: profileError } = await supabase
+            .from("client_profiles")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (profileError) {
+            console.error("[ClientAuth] Error checking profile:", profileError);
+          }
+          
+          if (profile) {
+            navigate("/browse");
+          } else {
+            navigate("/client-profile");
+          }
+        } else {
+          navigate("/client-profile");
+        }
+      }
     } catch (error) {
       if (error instanceof Error) {
         toast.error(error.message);
@@ -194,27 +345,51 @@ const ClientAuth = () => {
       
       const fullPhone = `${validated.countryCode}${validated.phone}`;
 
-      const { error } = await supabase.auth.signInWithOtp({
+      // Check if phone number already exists in client_profiles
+      const { data: existingPhoneProfile, error: checkError } = await supabase
+        .from("client_profiles")
+        .select("id, phone_number")
+        .eq("phone_number", fullPhone)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("[ClientAuth] Error checking existing phone:", checkError);
+      }
+
+      if (existingPhoneProfile) {
+        toast.error("An account with this phone number already exists. Please sign in instead.");
+        setLoading(false);
+        return;
+      }
+
+      const { error: otpError } = await supabase.auth.signInWithOtp({
         phone: fullPhone,
-        options: {
-          data: {
-            full_name: validated.fullName,
-            gender: validated.gender,
-            date_of_birth: validated.dateOfBirth,
-            religion: validated.religion,
-            profile_created_for: validated.profileCreatedFor,
-          },
-        },
       });
 
-      if (error) throw error;
+      if (otpError) {
+        console.error("[ClientAuth] OTP send error:", {
+          message: otpError.message,
+          status: otpError.status,
+          code: otpError.code,
+        });
+        throw otpError;
+      }
 
+      // Store pending signup data for profile creation after OTP verification
+      setPendingPhoneSignup({
+        fullName: validated.fullName,
+        gender: validated.gender,
+        dateOfBirth: validated.dateOfBirth,
+        religion: validated.religion,
+        profileCreatedFor: validated.profileCreatedFor,
+      });
       setOtpSent(true);
       toast.success("OTP sent to your phone!");
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
       } else if (error instanceof Error) {
+        console.error("[ClientAuth] Phone signup error:", error.message);
         toast.error(error.message);
       }
     } finally {
@@ -253,19 +428,118 @@ const ClientAuth = () => {
     try {
       const fullPhone = `${countryCode}${phone}`;
 
-      const { error } = await supabase.auth.verifyOtp({
+      const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
         phone: fullPhone,
         token: otp,
         type: 'sms',
       });
 
-      if (error) throw error;
+      if (otpError) {
+        console.error("[ClientAuth] OTP verification error:", {
+          message: otpError.message,
+          status: otpError.status,
+          code: otpError.code,
+        });
+        throw otpError;
+      }
+
+      console.log("[ClientAuth] OTP verified, user:", otpData.user?.id);
+
+      // If this is a signup (has pending data), create the profile
+      if (pendingPhoneSignup && otpData.user) {
+        // Check if this phone already has a profile
+        const { data: existingPhoneProfile, error: checkError } = await supabase
+          .from("client_profiles")
+          .select("id, phone_number")
+          .eq("phone_number", fullPhone)
+          .maybeSingle();
+
+        if (checkError) {
+          console.error("[ClientAuth] Error checking existing phone:", checkError);
+        }
+
+        if (existingPhoneProfile) {
+          toast.error("An account with this phone number already exists. Please sign in instead.");
+          setLoading(false);
+          setOtpSent(false);
+          setOtp("");
+          setPendingPhoneSignup(null);
+          return;
+        }
+
+        // Check if user already has a profile (unique constraint)
+        const { data: existingUserProfile, error: userCheckError } = await supabase
+          .from("client_profiles")
+          .select("id")
+          .eq("user_id", otpData.user.id)
+          .maybeSingle();
+
+        if (userCheckError) {
+          console.error("[ClientAuth] Error checking user profile:", userCheckError);
+        }
+
+        if (existingUserProfile) {
+          toast.success("Verified! You already have a profile. Redirecting...");
+          navigate("/client-profile");
+          setPendingPhoneSignup(null);
+          return;
+        }
+
+        // Now insert the profile with valid session
+        const { error: profileError } = await supabase
+          .from("client_profiles")
+          .insert({
+            user_id: otpData.user.id,
+            full_name: pendingPhoneSignup.fullName,
+            phone_number: fullPhone,
+            country_code: countryCode,
+            gender: pendingPhoneSignup.gender as "male" | "female" | "other",
+            date_of_birth: pendingPhoneSignup.dateOfBirth,
+            religion: pendingPhoneSignup.religion as "hindu" | "muslim" | "christian" | "sikh" | "buddhist" | "jain" | "other",
+            profile_created_for: pendingPhoneSignup.profileCreatedFor as "self" | "parents" | "siblings" | "relatives" | "friends",
+            country: "India",
+            is_profile_active: true,
+            show_phone_number: false,
+            payment_status: "free",
+            created_by: "client",
+          });
+
+        if (profileError) {
+          console.error("[ClientAuth] Profile creation error details:", {
+            message: profileError.message,
+            details: profileError.details,
+            hint: profileError.hint,
+            code: profileError.code,
+          });
+          
+          if (profileError.code === '23505') {
+            toast.error("A profile already exists for this account. Redirecting...");
+            navigate("/client-profile");
+          } else {
+            toast.error(`Failed to create profile: ${profileError.message}`);
+          }
+        } else {
+          console.log("[ClientAuth] Phone signup profile created successfully");
+          toast.success("Profile created successfully!");
+        }
+        
+        setPendingPhoneSignup(null);
+      } else if (otpData.user) {
+        // Phone sign-in (no pending signup data)
+        toast.success("Verified successfully!");
+        navigate("/client-profile");
+        return;
+      }
 
       toast.success("Verified successfully!");
-      navigate("/browse");
+      navigate("/client-profile");
     } catch (error) {
       if (error instanceof Error) {
+        console.error("[ClientAuth] OTP verification error:", error.message);
         toast.error(error.message);
+      } else {
+        console.error("[ClientAuth] Unknown OTP error:", error);
+        toast.error("Verification failed. Please try again.");
       }
     } finally {
       setLoading(false);

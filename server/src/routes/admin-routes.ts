@@ -670,4 +670,68 @@ router.get('/dashboard', requireAdmin, async (_req: Request, res: Response) => {
   }
 });
 
+router.post('/update-client-payment', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { profile_id, payment_status, is_profile_active } = req.body;
+
+    if (!profile_id) {
+      res.status(400).json({ success: false, error: 'Profile ID is required', code: 'MISSING_PROFILE_ID' });
+      return;
+    }
+
+    if (!['paid', 'non_paid', 'free'].includes(payment_status)) {
+      res.status(400).json({ success: false, error: 'Invalid payment status', code: 'INVALID_PAYMENT_STATUS' });
+      return;
+    }
+
+    console.log(`${LOG_PREFIX} Updating client payment status:`, {
+      profileId: profile_id,
+      paymentStatus: payment_status,
+      isProfileActive: is_profile_active,
+    });
+
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+      .from('client_profiles')
+      .update({
+        payment_status,
+        is_profile_active: is_profile_active ?? true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', profile_id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`${LOG_PREFIX} Error updating payment status:`, error);
+      res.status(500).json({ success: false, error: error.message, code: 'UPDATE_ERROR' });
+      return;
+    }
+
+    console.log(`${LOG_PREFIX} Payment status updated successfully:`, {
+      profileId: profile_id,
+      newPaymentStatus: payment_status,
+      updatedAt: data?.updated_at,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: data.id,
+        user_id: data.user_id,
+        payment_status: data.payment_status,
+        is_profile_active: data.is_profile_active,
+        updated_at: data.updated_at,
+      },
+      message: 'Payment status updated successfully',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`${LOG_PREFIX} Error updating payment status:`, errorMessage);
+    res.status(500).json({ success: false, error: errorMessage, code: 'UPDATE_ERROR', timestamp: new Date().toISOString() });
+  }
+});
+
 export default router;
