@@ -1,7 +1,19 @@
 import { createRoot } from "react-dom/client";
+import { StrictMode } from "react";
 import App from "./App.tsx";
 import "./index.css";
 import { getAppConfig } from "./lib/config";
+import { getMissingEnvVars, isConfigured } from "./integrations/supabase/client";
+import { EnvError } from "./components/EnvError";
+
+// Check environment configuration
+function checkEnvConfig(): string[] {
+  const missing = getMissingEnvVars();
+  if (missing.length > 0) {
+    console.error('[App] Missing required environment variables:', missing);
+  }
+  return missing;
+}
 
 // Register Service Worker for PWA (client app only)
 async function registerServiceWorker() {
@@ -26,11 +38,7 @@ async function registerServiceWorker() {
       if (newWorker) {
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // New content available
             console.log('[App] New content available, refresh to update');
-            
-            // Optionally show update notification
-            // toast.info('New version available! Refresh to update.');
           }
         });
       }
@@ -43,26 +51,35 @@ async function registerServiceWorker() {
 // Handle online/offline status
 function setupNetworkStatus() {
   const updateOnlineStatus = () => {
-    if (navigator.onLine) {
-      console.log('[App] Network: Online');
-    } else {
-      console.log('[App] Network: Offline');
-    }
+    console.log('[App] Network:', navigator.onLine ? 'Online' : 'Offline');
   };
 
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
+  updateOnlineStatus();
 }
 
 // Initialize app
 const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
-  root.render(<App />);
+  const missingVars = checkEnvConfig();
   
-  // Register service worker after render
-  registerServiceWorker();
-  setupNetworkStatus();
+  if (!isConfigured()) {
+    // Show configuration error instead of crashing
+    root.render(<EnvError missingVars={missingVars} />);
+    console.error('[App] App not configured - missing environment variables');
+  } else {
+    root.render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+    
+    // Register service worker after render
+    registerServiceWorker();
+    setupNetworkStatus();
+  }
 } else {
   console.error('[App] Root element not found');
 }
