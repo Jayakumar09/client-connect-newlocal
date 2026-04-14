@@ -7,6 +7,11 @@ export interface Message {
   sender_id: string;
   receiver_id: string;
   message: string;
+  message_type?: string;
+  attachment_url?: string;
+  attachment_name?: string;
+  attachment_size?: number;
+  attachment_mime_type?: string;
   is_read: boolean;
   created_at: string;
   updated_at: string;

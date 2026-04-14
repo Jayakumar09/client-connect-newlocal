@@ -16,6 +16,8 @@ import Plans from "./pages/Plans";
 import Payments from "./pages/Payments";
 import Subscriptions from "./pages/Subscriptions";
 import AdminPayments from "./pages/AdminPayments";
+import AdminMessages from "./pages/AdminMessages";
+import ClientMessages from "./pages/ClientMessages";
 import Messages from "./pages/Messages";
 import Help from "./pages/Help";
 import Notifications from "./pages/Notifications";
@@ -42,10 +44,12 @@ const App = () => (
               {/* Admin Routes */}
               <Route path="/dashboard" element={<AdminDashboard />} />
               <Route path="/admin-payments" element={<AdminPayments />} />
+              <Route path="/admin-messages" element={<AdminMessages />} />
               
               {/* Client Routes */}
               <Route path="/client-dashboard" element={<ClientDashboard />} />
               <Route path="/client-profile" element={<ClientProfile />} />
+              <Route path="/client-messages" element={<ClientMessages />} />
               <Route path="/browse" element={<Browse />} />
               <Route path="/plans" element={<Plans />} />
               <Route path="/payments" element={<Payments />} />
