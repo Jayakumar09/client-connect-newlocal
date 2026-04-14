@@ -6,7 +6,11 @@ import { Tables } from "@/integrations/supabase/types";
 import ShortlistButton from "./ShortlistButton";
 import SendInterestButton from "./SendInterestButton";
 
-type ClientProfile = Tables<"client_profiles">;
+type ClientProfile = Tables<"client_profiles"> & {
+  match_status?: 'not_matched' | 'matched' | null;
+  matched_with_id?: string | null;
+  match_remarks?: string | null;
+};
 
 interface ClientProfileCardProps {
   profile: ClientProfile;
@@ -65,6 +69,11 @@ const ClientProfileCard = ({ profile, onView }: ClientProfileCardProps) => {
       <CardContent className="p-4 space-y-3">
         <div>
           <h3 className="font-semibold text-lg text-gray-800 truncate">{profile.full_name}</h3>
+          {profile.profile_id && (
+            <Badge variant="outline" className="text-xs font-mono mt-1">
+              {profile.profile_id}
+            </Badge>
+          )}
           <p className="text-sm text-muted-foreground">
             {calculateAge(profile.date_of_birth)} yrs, {formatHeight(profile.height_cm) || "Height N/A"}
           </p>

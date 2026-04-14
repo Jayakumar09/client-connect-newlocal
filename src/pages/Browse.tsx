@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, Crown, Heart, Eye, Lock } from "lucide-react";
+import { LogOut, Loader2, Crown, Heart, Eye, Lock, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Tables } from "@/integrations/supabase/types";
 import ClientProfileCard from "@/components/ClientProfileCard";
@@ -20,7 +20,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-type ClientProfile = Tables<"client_profiles">;
+type ClientProfile = Tables<"client_profiles"> & {
+  match_status?: 'not_matched' | 'matched' | null;
+  matched_with_id?: string | null;
+  match_remarks?: string | null;
+};
 
 const Browse = () => {
   const navigate = useNavigate();
@@ -245,6 +249,15 @@ const Browse = () => {
             <Button onClick={() => navigate("/plans")} variant="default" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg">
               <Crown className="w-4 h-4 mr-1" />
               Upgrade
+            </Button>
+            <Button 
+              onClick={() => navigate("/client-messages")} 
+              variant="outline" 
+              className="border-pink-200 hover:bg-pink-50"
+              title="Chat with admin"
+            >
+              <MessageSquare className="w-4 h-4 mr-1 text-pink-500" />
+              <span className="hidden md:inline">Chat</span>
             </Button>
             <NotificationBell />
             <Button onClick={() => navigate("/client-profile")} variant="outline" className="border-pink-200 hover:bg-pink-50">

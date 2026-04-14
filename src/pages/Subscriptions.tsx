@@ -270,6 +270,11 @@ const Subscriptions = () => {
                               <h3 className="font-semibold text-lg">
                                 {subscription.client_profiles?.full_name || "Unknown User"}
                               </h3>
+                              {subscription.client_profiles?.profile_id && (
+                                <p className="text-xs text-muted-foreground font-mono">
+                                  {subscription.client_profiles.profile_id}
+                                </p>
+                              )}
                               {subscription.client_profiles?.phone_number && (
                                 <p className="text-sm text-muted-foreground">
                                   📞 {subscription.client_profiles.phone_number}

@@ -1,22 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Plus, LogOut, Users, UserCheck, AlertCircle } from "lucide-react";
+import { Plus, LogOut, Users, UserCheck, AlertCircle, MessageSquare, Heart, CheckCircle2 } from "lucide-react";
 import PersonCard from "@/components/PersonCard";
 import PersonDialog from "@/components/PersonDialog";
 import PersonViewDialog from "@/components/PersonViewDialog";
 import ClientProfileViewDialog from "@/components/ClientProfileViewDialog";
 import ClientProfileDialog from "@/components/ClientProfileDialog";
+import MatchDialog from "@/components/MatchDialog";
 import { BackupButton } from "@/components/BackupButton";
 import { StorageSummaryCard } from "@/components/StorageSummary";
 import { Tables } from "@/integrations/supabase/types";
 import { useStorageSummary, useSystemHealth } from "@/hooks/useStorageSummary";
 import { Pencil } from "lucide-react";
 import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { PaginatedRecordGrid } from "@/components/PaginatedRecordGrid";
+import { dedupeUrls } from "@/lib/image-utils";
 
 export interface Person {
   id: string;
@@ -30,13 +34,34 @@ export interface Person {
   updated_at: string;
   profile_image: string | null;
   payment_status: 'paid' | 'non_paid' | 'free';
+  profile_id?: string;
+  match_status?: 'active' | 'matched';
+  matched_at?: string | null;
+  matched_by?: string | null;
+  matched_with_id?: string | null;
+  match_remarks?: string | null;
 }
 
-type ClientProfile = Tables<"client_profiles">;
+type ClientProfile = Tables<"client_profiles"> & {
+  match_status?: 'not_matched' | 'matched' | null;
+  matched_with_id?: string | null;
+  match_remarks?: string | null;
+};
+
+const isDev = import.meta.env.DEV;
+
+function log(prefix: string, message: string, data?: unknown) {
+  if (isDev) {
+    console.log(`[AdminDashboard] [${prefix}] ${message}`, data ?? '');
+  }
+}
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user, isAdmin, isAuthenticated, loading: authLoading, signOut } = useAuth();
+  
+  const personsRef = useRef<Person[]>([]);
+  const lastFetchedAtRef = useRef<number>(0);
   
   const [persons, setPersons] = useState<Person[]>([]);
   const [clientProfiles, setClientProfiles] = useState<ClientProfile[]>([]);
@@ -50,6 +75,15 @@ const AdminDashboard = () => {
   const [editingClientProfile, setEditingClientProfile] = useState<ClientProfile | null>(null);
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Match Dialog State
+  const [matchDialogOpen, setMatchDialogOpen] = useState(false);
+  const [matchProfileType, setMatchProfileType] = useState<'person' | 'client_profile'>('person');
+  const [matchProfile, setMatchProfile] = useState<{ id: string; name: string; profile_id?: string } | null>(null);
+  const [unreadTotal, setUnreadTotal] = useState(0);
+  const [adminPage, setAdminPage] = useState(1);
+  const [clientPage, setClientPage] = useState(1);
+  const PAGE_SIZE = 6;
 
   const { storage, loading: storageLoading } = useStorageSummary();
   const { health } = useSystemHealth();
@@ -73,7 +107,7 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       setError(null);
-      await Promise.all([fetchPersons(), fetchClientProfiles()]);
+      await Promise.all([fetchPersons(), fetchClientProfiles(), fetchUnreadCount()]);
     } catch (err) {
       console.error('[AdminDashboard] Error fetching data:', err);
       setError('Failed to load data');
@@ -82,7 +116,22 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchUnreadCount = async () => {
+    try {
+      const { count } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_read', false);
+      setUnreadTotal(count || 0);
+    } catch (err) {
+      console.error('[AdminDashboard] Error fetching unread count:', err);
+    }
+  };
+
   const fetchPersons = async () => {
+    const fetchId = Date.now();
+    log('fetchPersons', `Starting fetch (id: ${fetchId})`);
+
     try {
       const { data, error } = await supabase
         .from("persons")
@@ -94,25 +143,31 @@ const AdminDashboard = () => {
         throw error;
       }
       
+      log('fetchPersons', `Fetched ${data?.length || 0} records from DB`);
+      
       const personsWithSignedUrls = await Promise.all(
         (data || []).map(async (person) => {
           if (person.image_urls?.length > 0) {
-            const signedUrls = await Promise.all(
-              person.image_urls.map(async (url: string) => {
-                const urlParts = url.split('/');
-                const filePath = urlParts.slice(-2).join('/');
-                const { data: signedData } = await supabase.storage
-                  .from("person-images")
-                  .createSignedUrl(filePath, 3600);
-                return signedData?.signedUrl || url;
-              })
-            );
-            return { ...person, image_urls: signedUrls };
+            const signedUrls: string[] = [];
+            for (const url of person.image_urls) {
+              const urlParts = url.split('/');
+              const filePath = urlParts.slice(-2).join('/');
+              const { data: signedData } = await supabase.storage
+                .from("person-images")
+                .createSignedUrl(filePath, 3600);
+              signedUrls.push(signedData?.signedUrl || url);
+            }
+            const dedupedSignedUrls = dedupeUrls(signedUrls, 'fetchPersons signedUrls');
+            log('fetchPersons', `Person ${person.id}: ${person.image_urls.length} -> ${dedupedSignedUrls.length} (after dedupe)`);
+            return { ...person, image_urls: dedupedSignedUrls };
           }
           return person;
         })
       );
       
+      log('fetchPersons', `Setting state with ${personsWithSignedUrls.length} persons`);
+      personsRef.current = personsWithSignedUrls;
+      lastFetchedAtRef.current = fetchId;
       setPersons(personsWithSignedUrls);
     } catch (err) {
       console.error('[AdminDashboard] fetchPersons error:', err);
@@ -186,6 +241,7 @@ const AdminDashboard = () => {
   };
 
   const handleDialogClose = () => {
+    log('dialogClose', 'Closing dialog, refreshing data');
     setIsDialogOpen(false);
     setEditingPerson(null);
     fetchPersons();
@@ -194,6 +250,17 @@ const AdminDashboard = () => {
   const handleClientDialogClose = () => {
     setIsClientDialogOpen(false);
     setEditingClientProfile(null);
+    fetchClientProfiles();
+  };
+
+  const handleMarkMatched = (type: 'person' | 'client_profile', profile: any) => {
+    setMatchProfileType(type);
+    setMatchProfile(profile);
+    setMatchDialogOpen(true);
+  };
+
+  const handleMatchSuccess = () => {
+    fetchPersons();
     fetchClientProfiles();
   };
 
@@ -215,6 +282,12 @@ const AdminDashboard = () => {
       (profile.city && profile.city.toLowerCase().includes(query))
     );
   });
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setAdminPage(1);
+    setClientPage(1);
+  };
 
   if (authLoading || loading) {
     return (
@@ -269,8 +342,14 @@ const AdminDashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => navigate('/browse')}>
-                View Site
+              <Button variant="outline" onClick={() => navigate('/admin-messages')}>
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Chat
+                {unreadTotal > 0 && (
+                  <span className="ml-2 px-1.5 py-0.5 text-xs bg-red-500 text-white rounded-full">
+                    {unreadTotal > 9 ? '9+' : unreadTotal}
+                  </span>
+                )}
               </Button>
               <Button variant="outline" onClick={handleSignOut}>
                 <LogOut className="w-4 h-4 mr-2" />
@@ -335,7 +414,7 @@ const AdminDashboard = () => {
             </div>
             <div className="flex gap-2">
               <BackupButton />
-              <Button onClick={() => setIsDialogOpen(true)}>
+              <Button onClick={() => { setEditingPerson(null); setIsDialogOpen(true); }}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Admin Record
               </Button>
@@ -346,7 +425,7 @@ const AdminDashboard = () => {
             type="text"
             placeholder="Search by name, phone, email, or city..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
@@ -357,36 +436,34 @@ const AdminDashboard = () => {
             <UserCheck className="h-5 w-5" />
             Admin Records ({filteredPersons.length})
           </h3>
-          {filteredPersons.length === 0 ? (
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle>{searchQuery ? "No Results Found" : "No Admin Records Yet"}</CardTitle>
-                <CardDescription>
-                  {searchQuery ? "Try a different search term" : "Get started by adding your first person record"}
-                </CardDescription>
-              </CardHeader>
-              {!searchQuery && (
-                <CardContent>
-                  <Button onClick={() => setIsDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Your First Record
-                  </Button>
-                </CardContent>
-              )}
-            </Card>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredPersons.map((person) => (
-                <PersonCard
-                  key={person.id}
-                  person={person}
-                  onView={handleView}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-          )}
+          <PaginatedRecordGrid
+            items={filteredPersons}
+            page={adminPage}
+            pageSize={PAGE_SIZE}
+            onPageChange={setAdminPage}
+            containerHeight="max-h-[60vh] md:max-h-[500px]"
+            renderItem={(person, globalIndex) => (
+              <PersonCard
+                key={person.id}
+                person={person}
+                globalIndex={globalIndex}
+                onView={handleView}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onMarkMatched={(p) => handleMarkMatched('person', p)}
+              />
+            )}
+            emptyMessage={searchQuery ? "No Results Found" : "No Admin Records Yet"}
+            emptyDescription={searchQuery ? "Try a different search term" : "Get started by adding your first person record"}
+            actionButton={
+              !searchQuery && (
+                <Button onClick={() => { setEditingPerson(null); setIsDialogOpen(true); }} className="mt-4">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Your First Record
+                </Button>
+              )
+            }
+          />
         </div>
 
         {/* Client Profiles Section */}
@@ -395,75 +472,114 @@ const AdminDashboard = () => {
             <Users className="h-5 w-5" />
             Client Profiles ({filteredClientProfiles.length})
           </h3>
-          {filteredClientProfiles.length === 0 ? (
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle>{searchQuery ? "No Results Found" : "No Client Profiles Yet"}</CardTitle>
-                <CardDescription>
-                  {searchQuery ? "Try a different search term" : "Client profiles will appear here when clients register"}
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredClientProfiles.map((profile) => (
-                <Card key={profile.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-3">
-                      {profile.profile_photo ? (
-                        <img 
-                          src={profile.profile_photo} 
-                          alt={profile.full_name}
-                          className="w-12 h-12 rounded-full object-cover border-2 border-pink-200"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                      ) : null}
-                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg ${profile.profile_photo ? 'hidden' : ''}`}>
-                        {profile.full_name.charAt(0).toUpperCase()}
+          <PaginatedRecordGrid
+            items={filteredClientProfiles}
+            page={clientPage}
+            pageSize={PAGE_SIZE}
+            onPageChange={setClientPage}
+            containerHeight="max-h-[60vh] md:max-h-[500px]"
+            renderItem={(profile, globalIndex) => {
+                const isMatched = profile.match_status === 'matched';
+                return (
+                  <Card key={profile.id} className={`overflow-hidden hover:shadow-lg transition-shadow ${isMatched ? 'opacity-90' : ''}`}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <CardTitle className="text-lg">
+                              {profile.full_name}
+                            </CardTitle>
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              profile.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
+                              profile.payment_status === 'non_paid' ? 'bg-red-100 text-red-700' :
+                              'bg-orange-100 text-orange-700'
+                            }`}>
+                              {profile.payment_status === 'paid' ? '{P}' :
+                               profile.payment_status === 'non_paid' ? '{NP}' : '{F}'}
+                            </span>
+                            {isMatched && (
+                              <Badge className="bg-green-100 text-green-700 border-green-300 gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Matched
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-xs">
+                              SL No: {globalIndex + 1}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="relative">
+                            {profile.profile_photo ? (
+                              <img
+                                src={profile.profile_photo}
+                                alt={profile.full_name}
+                                className="w-12 h-12 rounded-full object-cover border-2 border-pink-200"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                                {profile.full_name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            {isMatched && (
+                              <div className="absolute -bottom-1 -right-1 bg-green-500 text-white rounded-full p-0.5">
+                                <CheckCircle2 className="h-3 w-3" />
+                              </div>
+                            )}
+                          </div>
+                          {profile.profile_id && (
+                            <Badge variant="outline" className="text-xs font-mono mt-1">
+                              {profile.profile_id}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <CardTitle className="text-lg flex items-center gap-2 flex-wrap">
-                          {profile.full_name}
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            profile.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 
-                            profile.payment_status === 'non_paid' ? 'bg-red-100 text-red-700' : 
-                            'bg-orange-100 text-orange-700'
-                          }`}>
-                            {profile.payment_status === 'paid' ? '{P}' : 
-                             profile.payment_status === 'non_paid' ? '{NP}' : '{F}'}
-                          </span>
-                        </CardTitle>
-                        <CardDescription>{profile.gender} • {profile.religion}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-1 text-sm text-muted-foreground mb-4">
+                        {profile.phone_number && <p>📞 {profile.phone_number}</p>}
+                        {profile.email && <p>✉️ {profile.email}</p>}
+                        {profile.city && <p>📍 {profile.city}, {profile.state}</p>}
+                        {profile.occupation && <p>💼 {profile.occupation}</p>}
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-1 text-sm text-muted-foreground mb-4">
-                      {profile.phone_number && <p>📞 {profile.phone_number}</p>}
-                      {profile.email && <p>✉️ {profile.email}</p>}
-                      {profile.city && <p>📍 {profile.city}, {profile.state}</p>}
-                      {profile.occupation && <p>💼 {profile.occupation}</p>}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleViewClientProfile(profile)}>
-                        View
-                      </Button>
-                      <Button variant="secondary" size="sm" onClick={() => handleEditClientProfile(profile)}>
-                        <Pencil className="w-4 h-4 mr-1" />
-                        Payment
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2 text-center">
-                      Admin can only modify payment status
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                      {isMatched ? (
+                        <div className="grid grid-cols-1 gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleViewClientProfile(profile)}>
+                            View
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleViewClientProfile(profile)}>
+                            View
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-green-600 border-green-200 hover:bg-green-50"
+                            onClick={() => handleMarkMatched('client_profile', profile)}
+                          >
+                            <Heart className="w-4 h-4 mr-1" />
+                            Match
+                          </Button>
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        {isMatched ? 'Profile matched successfully' : 'Admin can only modify payment status'}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              }}
+            emptyMessage={searchQuery ? "No Results Found" : "No Client Profiles Yet"}
+            emptyDescription={searchQuery ? "Try a different search term" : "Client profiles will appear here when clients register"}
+          />
         </div>
       </main>
 
@@ -477,18 +593,30 @@ const AdminDashboard = () => {
         person={viewingPerson}
         open={!!viewingPerson}
         onClose={() => setViewingPerson(null)}
+        onMarkMatched={(p) => handleMarkMatched('person', p)}
       />
 
       <ClientProfileViewDialog
         profile={viewingClientProfile}
         open={!!viewingClientProfile}
         onClose={() => setViewingClientProfile(null)}
+        onMarkMatched={(p) => handleMarkMatched('client_profile', p)}
       />
 
       <ClientProfileDialog
         open={isClientDialogOpen}
         onClose={handleClientDialogClose}
         profile={editingClientProfile}
+      />
+
+      <MatchDialog
+        open={matchDialogOpen}
+        onClose={() => { setMatchDialogOpen(false); setMatchProfile(null); }}
+        profileType={matchProfileType}
+        profileId={matchProfile?.id || ''}
+        profileName={matchProfile?.name || ''}
+        profileCode={matchProfile?.profile_id || matchProfile?.id?.slice(0, 8) || ''}
+        onMatchSuccess={handleMatchSuccess}
       />
     </div>
   );

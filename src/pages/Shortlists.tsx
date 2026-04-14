@@ -151,6 +151,11 @@ const Shortlists = () => {
                         </Avatar>
                         <div className="flex-1">
                           <h3 className="font-semibold">{profile.full_name}</h3>
+                          {profile.profile_id && (
+                            <Badge variant="outline" className="text-xs font-mono mt-1">
+                              {profile.profile_id}
+                            </Badge>
+                          )}
                           <p className="text-sm text-muted-foreground">
                             {calculateAge(profile.date_of_birth)} yrs
                             {profile.city && `, ${profile.city}`}
@@ -200,6 +205,11 @@ const Shortlists = () => {
                         </Avatar>
                         <div className="flex-1">
                           <h3 className="font-semibold text-muted-foreground">{profile.full_name}</h3>
+                          {profile.profile_id && (
+                            <Badge variant="outline" className="text-xs font-mono mt-1">
+                              {profile.profile_id}
+                            </Badge>
+                          )}
                           <p className="text-sm text-muted-foreground">Blocked</p>
                         </div>
                         <Button

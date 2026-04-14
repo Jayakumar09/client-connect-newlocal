@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { User, Phone, Mail, MapPin, Briefcase, GraduationCap, Heart, Users, Star, Eye, Download, MessageSquare, Ban, AlertTriangle } from "lucide-react";
+import { User, Phone, Mail, MapPin, Briefcase, GraduationCap, Heart, Users, Star, Eye, Download, MessageSquare, Ban, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,18 +13,24 @@ import ShortlistButton from "./ShortlistButton";
 import BlockReportDialog from "./BlockReportDialog";
 import SendInterestButton from "./SendInterestButton";
 
-type ClientProfile = Tables<"client_profiles">;
+type ClientProfile = Tables<"client_profiles"> & {
+  match_status?: 'not_matched' | 'matched' | null;
+  matched_with_id?: string | null;
+  match_remarks?: string | null;
+};
 
 interface ClientProfileViewDialogProps {
   profile: ClientProfile | null;
   open: boolean;
   onClose: () => void;
+  onMarkMatched?: (profile: ClientProfile) => void;
 }
 
-const ClientProfileViewDialog = ({ profile, open, onClose }: ClientProfileViewDialogProps) => {
+const ClientProfileViewDialog = ({ profile, open, onClose, onMarkMatched }: ClientProfileViewDialogProps) => {
   const navigate = useNavigate();
   const [sendingMessage, setSendingMessage] = useState(false);
   const [blockReportMode, setBlockReportMode] = useState<'block' | 'report' | null>(null);
+  const isMatched = profile?.match_status === 'matched';
 
   if (!profile) return null;
 
@@ -157,7 +163,15 @@ const ClientProfileViewDialog = ({ profile, open, onClose }: ClientProfileViewDi
               
               <div className="flex-1 space-y-3">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-800">{profile.full_name}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-2xl font-bold text-gray-800">{profile.full_name}</h2>
+                    {isMatched && (
+                      <Badge className="bg-green-100 text-green-700 border-green-300 gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Matched
+                      </Badge>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     <Badge className="bg-gradient-to-r from-pink-500 to-purple-500">
                       {profile.gender === "male" ? "Groom" : "Bride"}
@@ -168,8 +182,33 @@ const ClientProfileViewDialog = ({ profile, open, onClose }: ClientProfileViewDi
                     <Badge variant="outline" className="border-purple-200">
                       {formatEnum(profile.religion)}
                     </Badge>
+                    {profile.profile_id && (
+                      <Badge variant="outline" className="font-mono border-blue-200">
+                        {profile.profile_id}
+                      </Badge>
+                    )}
                   </div>
                 </div>
+                
+                {/* Match Information */}
+                {isMatched && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+                    <div className="flex items-center gap-2 text-green-700 font-medium mb-1">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Matched Successfully
+                    </div>
+                    {profile.matched_at && (
+                      <p className="text-green-600 text-xs">
+                        On: {new Date(profile.matched_at).toLocaleDateString()} by {profile.matched_by || 'Admin'}
+                      </p>
+                    )}
+                    {profile.match_remarks && (
+                      <p className="text-green-600 text-xs mt-1">
+                        Note: {profile.match_remarks}
+                      </p>
+                    )}
+                  </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="flex items-center gap-2">
@@ -191,20 +230,35 @@ const ClientProfileViewDialog = ({ profile, open, onClose }: ClientProfileViewDi
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 flex-wrap">
-                  <SendInterestButton profileUserId={profile.user_id} />
-                  <Button
-                    onClick={handleStartChat}
-                    disabled={sendingMessage}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    {sendingMessage ? "Starting..." : "Message"}
-                  </Button>
+                  {!isMatched && onMarkMatched && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-green-600 border-green-200 hover:bg-green-50"
+                      onClick={() => onMarkMatched(profile)}
+                    >
+                      <Heart className="h-4 w-4 mr-1" />
+                      Mark as Matched
+                    </Button>
+                  )}
+                  {!isMatched && <SendInterestButton profileUserId={profile.user_id} />}
+                  {!isMatched && (
+                    <Button
+                      onClick={handleStartChat}
+                      disabled={sendingMessage}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      {sendingMessage ? "Starting..." : "Message"}
+                    </Button>
+                  )}
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  <ShortlistButton profileUserId={profile.user_id} variant="full" />
-                </div>
+                {!isMatched && (
+                  <div className="flex gap-2 flex-wrap">
+                    <ShortlistButton profileUserId={profile.user_id} variant="full" />
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button
                     variant="outline"

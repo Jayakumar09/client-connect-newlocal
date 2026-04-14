@@ -17,7 +17,11 @@ import logoImage from "@/assets/sri-lakshmi-logo.png";
 import { z } from "zod";
 import { Tables } from "@/integrations/supabase/types";
 
-type ClientProfile = Tables<"client_profiles">;
+type ClientProfile = Tables<"client_profiles"> & {
+  match_status?: 'not_matched' | 'matched' | null;
+  matched_with_id?: string | null;
+  match_remarks?: string | null;
+};
 
 const profileFormSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),

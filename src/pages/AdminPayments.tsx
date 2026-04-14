@@ -327,6 +327,11 @@ const AdminPayments = () => {
                                 <h3 className="font-semibold text-lg">
                                   {payment.client_profiles?.full_name || "Unknown User"}
                                 </h3>
+                                {payment.client_profiles?.profile_id && (
+                                  <p className="text-xs text-muted-foreground font-mono">
+                                    {payment.client_profiles.profile_id}
+                                  </p>
+                                )}
                                 <div className="text-sm text-muted-foreground space-y-1">
                                   {payment.client_profiles?.phone_number && (
                                     <p>📞 {payment.client_profiles.phone_number}</p>

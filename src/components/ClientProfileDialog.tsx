@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,7 +10,11 @@ import { toast } from "sonner";
 import { Tables } from "@/integrations/supabase/types";
 import { Shield, CreditCard, Eye, EyeOff } from "lucide-react";
 
-type ClientProfile = Tables<"client_profiles">;
+type ClientProfile = Tables<"client_profiles"> & {
+  match_status?: 'not_matched' | 'matched' | null;
+  matched_with_id?: string | null;
+  match_remarks?: string | null;
+};
 
 interface ClientProfileDialogProps {
   open: boolean;
@@ -110,12 +115,16 @@ const ClientProfileDialog = ({ open, onClose, profile }: ClientProfileDialogProp
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             {profile && (
               <div className="bg-muted/50 rounded-lg p-4 mb-4">
-                <p className="font-medium text-lg">{profile.full_name}</p>
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-lg">{profile.full_name}</p>
+                  {profile.profile_id && (
+                    <Badge variant="outline" className="font-mono">
+                      {profile.profile_id}
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground">
                   {profile.email || profile.phone_number || 'No contact info'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Profile ID: {profile.id.slice(0, 8)}...
                 </p>
               </div>
             )}

@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import backupRoutes from './routes/backup-routes.js';
 import adminRoutes from './routes/admin-routes.js';
 import backupRestoreRoutes from './routes/backup-restore-routes.js';
+import chatRoutes from './routes/chat-routes.js';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use('/api/backup', backupRoutes);
 app.use('/api/admin/backup', backupRestoreRoutes);
 app.use('/api/admin/restore', backupRestoreRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/chat', chatRoutes);
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
