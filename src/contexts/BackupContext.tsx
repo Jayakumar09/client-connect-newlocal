@@ -1,12 +1,13 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Tables } from '@/integrations/supabase/types';
+import { getApiEndpoint } from '@/lib/config';
 
 type BackupStatus = Tables<'backup_logs'>['status'];
 type BackupType = Tables<'backup_logs'>['type'];
 
 const LOG_PREFIX = '[BackupContext]';
-const BACKUP_API_URL = import.meta.env.VITE_BACKUP_API_URL || 'http://localhost:3001';
+const BACKUP_API_URL = getApiEndpoint('');
 const ADMIN_API_KEY = import.meta.env.VITE_ADMIN_API_KEY || '';
 
 export interface BackupLog {

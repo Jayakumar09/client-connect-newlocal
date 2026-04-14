@@ -1,0 +1,54 @@
+{
+  "name": "matrimony-api",
+  "region": "singapore",
+  "plan": "free",
+  "buildCommand": "npm run build",
+  "startCommand": "npm start",
+  "healthCheckPath": "/health",
+  "envVars": [
+    {
+      "key": "NODE_ENV",
+      "value": "production"
+    },
+    {
+      "key": "PORT",
+      "value": "3001"
+    },
+    {
+      "key": "SUPABASE_URL",
+      "sync": false
+    },
+    {
+      "key": "SUPABASE_SERVICE_ROLE_KEY",
+      "sync": false
+    },
+    {
+      "key": "GOOGLE_DRIVE_FOLDER_ID",
+      "sync": false
+    },
+    {
+      "key": "GOOGLE_DRIVE_CLIENT_ID",
+      "sync": false
+    },
+    {
+      "key": "GOOGLE_DRIVE_CLIENT_SECRET",
+      "sync": false
+    },
+    {
+      "key": "GOOGLE_DRIVE_REFRESH_TOKEN",
+      "sync": false
+    },
+    {
+      "key": "ADMIN_API_KEY",
+      "sync": false
+    },
+    {
+      "key": "ADMIN_DOMAIN",
+      "value": "admin.vijayalakshmiboyarmatrimony.com"
+    },
+    {
+      "key": "CLIENT_DOMAIN",
+      "value": "app.vijayalakshmiboyarmatrimony.com"
+    }
+  ]
+}

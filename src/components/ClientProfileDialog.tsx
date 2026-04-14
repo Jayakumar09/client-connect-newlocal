@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Tables } from "@/integrations/supabase/types";
 import { Shield, CreditCard, Eye, EyeOff } from "lucide-react";
+import { getApiEndpoint } from "@/lib/config";
 
 type ClientProfile = Tables<"client_profiles"> & {
   match_status?: 'not_matched' | 'matched' | null;
@@ -54,7 +55,7 @@ const ClientProfileDialog = ({ open, onClose, profile }: ClientProfileDialogProp
       });
 
       const apiKey = import.meta.env.VITE_ADMIN_API_KEY;
-      const apiUrl = import.meta.env.VITE_BACKUP_API_URL || 'http://localhost:3001';
+      const apiUrl = getApiEndpoint();
       
       if (!apiKey) {
         console.error('[ClientProfileDialog] Admin API key not configured');

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
+import { getApiEndpoint } from '@/lib/config';
 
-const API_BASE = import.meta.env.VITE_BACKUP_API_URL || 'http://localhost:3001';
+const API_BASE = getApiEndpoint('');
 const ADMIN_API_KEY = import.meta.env.VITE_ADMIN_API_KEY || '';
 const LOG_PREFIX = '[useStorageSummary]';
 
