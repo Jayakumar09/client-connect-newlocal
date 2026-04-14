@@ -47,7 +47,6 @@ export const useMessages = () => {
     
     setLoading(true);
     try {
-      // Get all messages where user is sender or receiver
       const { data: messagesData, error } = await supabase
         .from('messages')
         .select('*')
@@ -56,7 +55,6 @@ export const useMessages = () => {
 
       if (error) throw error;
 
-      // Get unique conversation partners
       const partnerIds = new Set<string>();
       messagesData?.forEach(msg => {
         if (msg.sender_id === currentUserId) {
@@ -66,15 +64,42 @@ export const useMessages = () => {
         }
       });
 
-      // Fetch partner profiles
-      const { data: profiles } = await supabase
-        .from('client_profiles')
-        .select('user_id, full_name, profile_photo')
-        .in('user_id', Array.from(partnerIds));
+      const partnerIdArray = Array.from(partnerIds);
+      
+      // Fetch client profiles
+      const { data: clientProfiles } = partnerIdArray.length > 0
+        ? await supabase
+            .from('client_profiles')
+            .select('user_id, full_name, profile_photo')
+            .in('user_id', partnerIdArray)
+        : { data: null };
 
-      const profileMap = new Map<string, { user_id: string; full_name: string; profile_photo: string | null }>(
-        profiles?.map(p => [p.user_id, p]) || []
-      );
+      // Fetch admin profiles from persons table (admins may not have client_profiles)
+      const { data: adminProfiles } = partnerIdArray.length > 0
+        ? await supabase
+            .from('persons')
+            .select('user_id, name, profile_image')
+            .in('user_id', partnerIdArray)
+        : { data: null };
+
+      // Build combined profile map (client profiles take priority, then admin profiles)
+      const profileMap = new Map<string, { name: string; photo: string | null; type: 'client' | 'admin' }>();
+      
+      adminProfiles?.forEach(p => {
+        profileMap.set(p.user_id, { 
+          name: p.name || 'Admin', 
+          photo: p.profile_image || null,
+          type: 'admin'
+        });
+      });
+      
+      clientProfiles?.forEach(p => {
+        profileMap.set(p.user_id, { 
+          name: p.full_name || 'Unknown User', 
+          photo: p.profile_photo || null,
+          type: 'client'
+        });
+      });
 
       // Build conversations list
       const conversationMap = new Map<string, Conversation>();
@@ -90,18 +115,24 @@ export const useMessages = () => {
             !m.is_read
           ).length;
 
+          const partnerName = profile?.name || 'Unknown User';
+          const displayName = profile?.type === 'admin' ? `Admin - ${partnerName}` : partnerName;
+
           conversationMap.set(partnerId, {
             partnerId,
-            partnerName: profile?.full_name || 'Unknown User',
-            partnerPhoto: profile?.profile_photo || null,
-            lastMessage: msg.message,
+            partnerName: displayName,
+            partnerPhoto: profile?.photo || null,
+            lastMessage: msg.message || (msg.attachment_url ? '[Attachment]' : ''),
             lastMessageTime: msg.created_at,
             unreadCount
           });
         }
       });
 
-      setConversations(Array.from(conversationMap.values()));
+      const sortedConversations = Array.from(conversationMap.values())
+        .sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime());
+
+      setConversations(sortedConversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
       toast.error('Failed to load conversations');

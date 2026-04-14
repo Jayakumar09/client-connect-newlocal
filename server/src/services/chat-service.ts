@@ -109,19 +109,47 @@ export class ChatService {
       }
     });
 
-    const { data: profiles } = await supabase
-      .from('client_profiles')
-      .select('user_id, full_name, profile_photo')
-      .in('user_id', Array.from(partnerIds));
+    const partnerIdArray = Array.from(partnerIds);
+    
+    // Fetch client profiles
+    const { data: clientProfiles } = partnerIdArray.length > 0
+      ? await supabase
+          .from('client_profiles')
+          .select('user_id, full_name, profile_photo')
+          .in('user_id', partnerIdArray)
+      : { data: null };
 
-    const profileMap = new Map<string, { user_id: string; full_name: string; profile_photo: string | null }>(
-      profiles?.map(p => [p.user_id, p]) || []
-    );
+    // Fetch admin profiles from persons table
+    const { data: adminProfiles } = partnerIdArray.length > 0
+      ? await supabase
+          .from('persons')
+          .select('user_id, name, profile_image')
+          .in('user_id', partnerIdArray)
+      : { data: null };
+
+    // Build combined profile map
+    const profileMap = new Map<string, { name: string; photo: string | null; type: 'client' | 'admin' }>();
+    
+    adminProfiles?.forEach(p => {
+      profileMap.set(p.user_id, { 
+        name: p.name || 'Admin', 
+        photo: p.profile_image || null,
+        type: 'admin'
+      });
+    });
+    
+    clientProfiles?.forEach(p => {
+      profileMap.set(p.user_id, { 
+        name: p.full_name || 'Unknown User', 
+        photo: p.profile_photo || null,
+        type: 'client'
+      });
+    });
 
     const { data: presences } = await supabase
       .from('conversation_presences')
       .select('user_id, is_online, last_seen_at')
-      .in('user_id', Array.from(partnerIds));
+      .in('user_id', partnerIdArray);
 
     const presenceMap = new Map<string, { is_online: boolean; last_seen_at: string }>(
       presences?.map(p => [p.user_id, { is_online: p.is_online, last_seen_at: p.last_seen_at }]) || []
@@ -142,11 +170,14 @@ export class ChatService {
           !m.is_deleted
         ).length;
 
+        const partnerName = profile?.name || 'Unknown User';
+        const displayName = profile?.type === 'admin' ? `Admin - ${partnerName}` : partnerName;
+
         conversationMap.set(partnerId, {
           partnerId,
-          partnerName: profile?.full_name || 'Unknown User',
-          partnerPhoto: profile?.profile_photo || null,
-          lastMessage: msg.message,
+          partnerName: displayName,
+          partnerPhoto: profile?.photo || null,
+          lastMessage: msg.message || (msg.attachment_url ? '[Attachment]' : ''),
           lastMessageTime: msg.created_at,
           unreadCount,
           isOnline: presence?.is_online || false,
@@ -155,7 +186,8 @@ export class ChatService {
       }
     });
 
-    return Array.from(conversationMap.values());
+    return Array.from(conversationMap.values())
+      .sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime());
   }
 
   async getMessages(userId: string, partnerId: string, limit = 50, before?: string): Promise<ChatMessage[]> {

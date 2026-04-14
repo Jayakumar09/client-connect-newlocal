@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Search, Send, Paperclip, Image, File, Mic, MicOff, X, ChevronDown, Play, Pause, Square, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, Search, Send, Paperclip, Image, File as FileIcon, Mic, MicOff, X, ChevronDown, Play, Pause, Square, Trash2, Download } from "lucide-react";
 import { format, isToday, isYesterday, isThisWeek, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import logoImage from "@/assets/sri-lakshmi-logo.png";
@@ -491,6 +491,13 @@ const AdminMessages: React.FC = () => {
 
   const formatMessageTime = (dateStr: string) => format(new Date(dateStr), "h:mm a");
 
+  const formatFileSize = (bytes: number | string) => {
+    const size = typeof bytes === 'string' ? parseInt(bytes, 10) : bytes;
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  };
+
   const filteredConversations = useMemo(() => {
     if (!searchQuery.trim()) return conversations;
     const query = searchQuery.toLowerCase();
@@ -694,6 +701,11 @@ const AdminMessages: React.FC = () => {
                               {msgs.map((msg) => {
                                 const isMine = msg.sender_id === user?.id;
                                 const isVoiceMessage = (msg as any).message_type === 'audio' || msg.message.startsWith('🎤');
+                                const hasAttachment = (msg as any).attachment_url;
+                                const attachmentUrl = (msg as any).attachment_url;
+                                const attachmentName = (msg as any).attachment_name;
+                                const attachmentMimeType = (msg as any).attachment_mime_type;
+                                const isImageAttachment = attachmentMimeType?.startsWith('image/');
                                 
                                 return (
                                   <div
@@ -711,12 +723,13 @@ const AdminMessages: React.FC = () => {
                                           : "bg-muted text-foreground rounded-bl-md"
                                       )}
                                     >
-                                      {isVoiceMessage && (msg as any).attachment_url ? (
+                                      {/* Voice Message */}
+                                      {isVoiceMessage && attachmentUrl ? (
                                         <div className="flex items-center gap-2">
                                           <Button
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() => togglePlayAudio(msg.id, (msg as any).attachment_url)}
+                                            onClick={() => togglePlayAudio(msg.id, attachmentUrl)}
                                             className={cn("h-10 w-10 rounded-full", isMine ? "text-white" : "text-pink-500")}
                                           >
                                             {playingAudioId === msg.id ? (
@@ -730,11 +743,56 @@ const AdminMessages: React.FC = () => {
                                               Voice message
                                             </p>
                                             <p className={cn("text-xs", isMine ? "text-white/70" : "text-muted-foreground")}>
-                                              {(msg as any).attachment_name || 'Audio'}
+                                              {attachmentName || 'Audio'}
                                             </p>
                                           </div>
                                         </div>
+                                      ) : hasAttachment && isImageAttachment ? (
+                                        /* Image Attachment */
+                                        <div>
+                                          <a href={attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                            <img 
+                                              src={attachmentUrl} 
+                                              alt={attachmentName || 'Image'} 
+                                              className="rounded-lg max-w-full cursor-pointer hover:opacity-90"
+                                            />
+                                          </a>
+                                          {msg.message && msg.message !== `[${attachmentName}]` && (
+                                            <p className="break-words mt-2">{msg.message}</p>
+                                          )}
+                                        </div>
+                                      ) : hasAttachment ? (
+                                        /* Document/File Attachment (PDF, DOC, etc.) */
+                                        <div className="flex items-center gap-3">
+                                          <div className={cn(
+                                            "h-12 w-12 rounded-lg flex items-center justify-center",
+                                            isMine ? "bg-white/20" : "bg-primary/10"
+                                          )}>
+                                            <FileIcon className={cn("h-6 w-6", isMine ? "text-white" : "text-primary")} />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <p className={cn("text-sm font-medium truncate", isMine ? "text-white" : "text-foreground")}>
+                                              {attachmentName || 'Document'}
+                                            </p>
+                                            {(msg as any).attachment_size && (
+                                              <p className={cn("text-xs", isMine ? "text-white/70" : "text-muted-foreground")}>
+                                                {formatFileSize((msg as any).attachment_size)}
+                                              </p>
+                                            )}
+                                          </div>
+                                          <a 
+                                            href={attachmentUrl} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            download={attachmentName}
+                                          >
+                                            <Button size="sm" variant="ghost" className={cn(isMine ? "text-white hover:text-white/80" : "")}>
+                                              <Download className="h-4 w-4" />
+                                            </Button>
+                                          </a>
+                                        </div>
                                       ) : (
+                                        /* Text Message */
                                         <p className="break-words">{msg.message}</p>
                                       )}
                                       <p

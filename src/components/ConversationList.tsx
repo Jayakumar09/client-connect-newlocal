@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -13,11 +13,15 @@ interface ConversationListProps {
 const ConversationList = ({ onSelectConversation }: ConversationListProps) => {
   const { conversations, loading, fetchConversations } = useMessages();
 
-  useEffect(() => {
+  const loadConversations = useCallback(() => {
     fetchConversations();
   }, [fetchConversations]);
 
-  if (loading) {
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  if (loading && conversations.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -44,15 +48,20 @@ const ConversationList = ({ onSelectConversation }: ConversationListProps) => {
       <div className="space-y-1 p-2">
         {conversations.map((conversation) => (
           <button
-            key={conversation.partnerId}
+            key={`${conversation.partnerId}-${conversation.lastMessageTime}`}
             onClick={() => onSelectConversation(conversation)}
-            className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
+            className={`w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors text-left ${
+              conversation.unreadCount > 0 ? 'bg-muted/30' : ''
+            }`}
           >
             <div className="relative">
               <Avatar className="h-12 w-12">
-                <AvatarImage src={conversation.partnerPhoto || undefined} alt={conversation.partnerName} />
+                <AvatarImage 
+                  src={conversation.partnerPhoto || undefined} 
+                  alt={conversation.partnerName || 'User'} 
+                />
                 <AvatarFallback className="bg-gradient-to-br from-pink-400 to-purple-500 text-white">
-                  {conversation.partnerName.charAt(0).toUpperCase()}
+                  {(conversation.partnerName || 'U').charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               {conversation.unreadCount > 0 && (
@@ -65,13 +74,21 @@ const ConversationList = ({ onSelectConversation }: ConversationListProps) => {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <h4 className="font-medium truncate">{conversation.partnerName}</h4>
-                <span className="text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(conversation.lastMessageTime), { addSuffix: true })}
-                </span>
+                <h4 className="font-medium truncate">
+                  {conversation.partnerName || 'Unknown User'}
+                </h4>
+                {conversation.lastMessageTime && (
+                  <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                    {formatDistanceToNow(new Date(conversation.lastMessageTime), { addSuffix: true })}
+                  </span>
+                )}
               </div>
-              <p className={`text-sm truncate ${conversation.unreadCount > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                {conversation.lastMessage}
+              <p className={`text-sm truncate ${
+                conversation.unreadCount > 0 
+                  ? 'text-foreground font-medium' 
+                  : 'text-muted-foreground'
+              }`}>
+                {conversation.lastMessage || 'No messages yet'}
               </p>
             </div>
           </button>

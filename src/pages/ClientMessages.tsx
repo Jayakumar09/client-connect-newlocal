@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Search, Send, Paperclip, Image, File, Mic, Play, Pause, Trash2, X, MessageSquare } from "lucide-react";
+import { Loader2, ArrowLeft, Search, Send, Paperclip, Image, File as FileIcon, Mic, Play, Pause, Trash2, X, MessageSquare, Upload, Download } from "lucide-react";
 import { format, isToday, isYesterday, isThisWeek, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import logoImage from "@/assets/sri-lakshmi-logo.png";
 import EmojiPicker from "@/components/EmojiPicker";
+import { toast } from "sonner";
 
 interface Conversation {
   partnerId: string;
@@ -75,6 +76,8 @@ const ClientMessages = () => {
 
       if (error) throw error;
 
+      console.log('[ClientMessages] Raw messages count:', messagesData?.length);
+
       const partnerMap = new Map<string, Conversation>();
       
       messagesData?.forEach((msg: Message) => {
@@ -83,9 +86,9 @@ const ClientMessages = () => {
         if (!partnerMap.has(partnerId)) {
           partnerMap.set(partnerId, {
             partnerId,
-            partnerName: "Admin",
+            partnerName: "Admin", // Will be updated after fetching profiles
             partnerPhoto: null,
-            lastMessage: msg.message,
+            lastMessage: msg.message || (msg.attachment_url ? '[Attachment]' : ''),
             lastMessageTime: msg.created_at,
             unreadCount: 0
           });
@@ -95,9 +98,68 @@ const ClientMessages = () => {
         if (msg.sender_id !== user?.id && !msg.is_read) {
           conv.unreadCount++;
         }
+        // Update lastMessage to most recent
+        if (new Date(msg.created_at) > new Date(conv.lastMessageTime)) {
+          conv.lastMessage = msg.message || (msg.attachment_url ? '[Attachment]' : '');
+          conv.lastMessageTime = msg.created_at;
+        }
       });
 
-      setConversations(Array.from(partnerMap.values()));
+      const partnerIds = Array.from(partnerMap.keys());
+      console.log('[ClientMessages] Unique partners:', partnerIds);
+
+      // Fetch partner profiles from both tables
+      const [clientProfiles, adminProfiles] = await Promise.all([
+        partnerIds.length > 0 
+          ? supabase.from('client_profiles').select('user_id, full_name, profile_photo').in('user_id', partnerIds)
+          : { data: null },
+        partnerIds.length > 0 
+          ? supabase.from('persons').select('user_id, name, profile_image').in('user_id', partnerIds)
+          : { data: null }
+      ]);
+
+      const profileMap = new Map<string, { name: string; photo: string | null; type: string }>();
+      
+      console.log('[ClientMessages] adminProfiles lookup:', adminProfiles);
+      console.log('[ClientMessages] clientProfiles lookup:', clientProfiles);
+      
+      // First add admin profiles (from persons table)
+      adminProfiles.data?.forEach(p => {
+        const shortId = p.user_id.slice(-4);
+        const adminName = p.name || `Admin #${shortId}`;
+        profileMap.set(p.user_id, { 
+          name: `Admin - ${adminName}`, 
+          photo: p.profile_image || null,
+          type: 'admin'
+        });
+      });
+      
+      // Then client profiles (they override if user has both)
+      clientProfiles.data?.forEach(p => {
+        profileMap.set(p.user_id, { 
+          name: p.full_name || 'Unknown User', 
+          photo: p.profile_photo || null,
+          type: 'client'
+        });
+      });
+
+      // Update conversation names with actual profile data
+      partnerMap.forEach((conv, partnerId) => {
+        const profile = profileMap.get(partnerId);
+        if (profile) {
+          conv.partnerName = profile.name;
+          conv.partnerPhoto = profile.photo;
+        } else {
+          // Fallback: use short ID when no profile found
+          conv.partnerName = `User #${partnerId.slice(-6)}`;
+        }
+      });
+
+      const sortedConversations = Array.from(partnerMap.values())
+        .sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime());
+
+      console.log('[ClientMessages] Final conversations:', sortedConversations.length, sortedConversations);
+      setConversations(sortedConversations);
     } catch (error) {
       console.error("[ClientMessages] Error fetching conversations:", error);
     }
@@ -136,18 +198,18 @@ const ClientMessages = () => {
       return;
     }
     
-    setSelectedPartner({
-      partnerId: ADMIN_USER_ID,
-      partnerName: "Admin",
-      partnerPhoto: null,
-      lastMessage: "",
-      lastMessageTime: new Date().toISOString(),
-      unreadCount: 0
-    });
-    
     Promise.all([fetchConversations()])
       .finally(() => setLoading(false));
   }, [authLoading, isAuthenticated, navigate, fetchConversations]);
+
+  // Auto-select first conversation when conversations are loaded
+  useEffect(() => {
+    if (conversations.length > 0 && !selectedPartner) {
+      console.log('[ClientMessages] Auto-selecting first conversation:', conversations[0]);
+      setSelectedPartner(conversations[0]);
+      fetchMessages(conversations[0].partnerId);
+    }
+  }, [conversations, selectedPartner, fetchMessages]);
 
   useEffect(() => {
     if (selectedPartner && messagesEndRef.current) {
@@ -158,6 +220,12 @@ const ClientMessages = () => {
     }
   }, [selectedPartner, messages]);
 
+  const sanitizeFileName = (name: string): string => {
+    return name
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .substring(0, 100);
+  };
+
   const sendMessage = async () => {
     if (!selectedPartner || sending) return;
     if (!newMessage.trim() && !attachmentPreview) return;
@@ -165,41 +233,72 @@ const ClientMessages = () => {
     setSending(true);
     try {
       if (attachmentPreview) {
-        const fileExt = attachmentPreview.name.split(".").pop();
-        const filePath = `${user?.id}/${Date.now()}.${fileExt}`;
+        // Debug: Check auth state before upload
+        const { data: sessionData } = await supabase.auth.getSession();
+        console.log('[ClientMessages] Auth state before upload:', {
+          userId: user?.id,
+          sessionUser: sessionData?.user?.id,
+          bucket: 'chat-attachments'
+        });
 
-        const { error: uploadError } = await supabase.storage
+        console.log('[ClientMessages] Uploading file:', {
+          name: attachmentPreview.name,
+          type: attachmentPreview.type,
+          size: attachmentPreview.size,
+          sizeMB: (attachmentPreview.size / 1024 / 1024).toFixed(2)
+        });
+
+        const sanitizedName = sanitizeFileName(attachmentPreview.name);
+        const fileExt = sanitizedName.split(".").pop() || "bin";
+        const filePath = `${user?.id}/${Date.now()}-${sanitizedName}`;
+
+        console.log('[ClientMessages] Upload path:', filePath);
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from("chat-attachments")
           .upload(filePath, attachmentPreview, {
             contentType: attachmentPreview.type,
             upsert: false
           });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('[ClientMessages] Upload error details:', {
+            message: uploadError.message,
+            status: uploadError.status,
+            error: uploadError
+          });
+          throw new Error(`Upload failed: ${uploadError.message}`);
+        }
+
+        console.log('[ClientMessages] Upload success:', uploadData);
 
         const { data: urlData } = supabase.storage
           .from("chat-attachments")
           .getPublicUrl(filePath);
 
-        let messageType = "document";
-        if (attachmentPreview.type.startsWith("image/")) messageType = "image";
-        else if (attachmentPreview.type.startsWith("video/")) messageType = "video";
-        else if (attachmentPreview.type.startsWith("audio/")) messageType = "audio";
+        // Build insert payload - ONLY send columns that definitely exist in messages table
+        const insertPayload = {
+          sender_id: user?.id,
+          receiver_id: selectedPartner.partnerId,
+          message: newMessage.trim() || `[${attachmentPreview.name}]`,
+          attachment_url: urlData.publicUrl,
+          attachment_name: attachmentPreview.name,
+          attachment_size: String(attachmentPreview.size),
+          attachment_mime_type: attachmentPreview.type
+        };
+
+        console.log('[ClientMessages] Insert payload:', insertPayload);
 
         const { error } = await supabase
           .from("messages")
-          .insert({
-            sender_id: user?.id,
-            receiver_id: selectedPartner.partnerId,
-            message: newMessage.trim() || "",
-            message_type: messageType,
-            attachment_url: urlData.publicUrl,
-            attachment_name: attachmentPreview.name,
-            attachment_size: attachmentPreview.size,
-            attachment_mime_type: attachmentPreview.type
-          });
+          .insert(insertPayload);
 
-        if (error) throw error;
+        if (error) {
+          console.error('[ClientMessages] Insert error:', error);
+          throw error;
+        }
+
+        toast.success("File sent successfully");
       } else {
         const { error } = await supabase
           .from("messages")
@@ -217,8 +316,23 @@ const ClientMessages = () => {
       setFileInputKey(k => k + 1);
       await fetchMessages(selectedPartner.partnerId);
       await fetchConversations();
-    } catch (error) {
+    } catch (error: any) {
       console.error("[ClientMessages] Error sending message:", error);
+      const errorMessage = error?.message || 'Unknown error';
+      console.error('[ClientMessages] Error message for toast:', errorMessage);
+      
+      if (errorMessage.includes('Bucket not found')) {
+        toast.error("Storage not configured. Please contact admin to set up file storage.");
+      } else if (errorMessage.includes('permission') || errorMessage.includes('violates row-level security') || errorMessage.includes('new row violates')) {
+        toast.error("Upload failed: Storage permission issue. Please contact admin to check storage policies.");
+        console.error('[ClientMessages] RLS Policy error - check Supabase storage policies');
+      } else if (errorMessage.includes('quota') || errorMessage.includes('limit')) {
+        toast.error("Upload failed: Storage limit exceeded.");
+      } else if (errorMessage.includes('already exists')) {
+        toast.error("Upload failed: File already exists.");
+      } else {
+        toast.error(`Failed to send message: ${errorMessage}`);
+      }
     } finally {
       setSending(false);
     }
@@ -282,7 +396,7 @@ const ClientMessages = () => {
     setSending(true);
     try {
       const fileExt = 'webm';
-      const filePath = `${currentUserId}/${Date.now()}.${fileExt}`;
+      const filePath = `${currentUserId}/${Date.now()}-voice.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('chat-attachments')
@@ -291,7 +405,10 @@ const ClientMessages = () => {
           upsert: false
         });
       
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('[ClientMessages] Voice upload error:', uploadError);
+        throw new Error(`Voice upload failed: ${uploadError.message}`);
+      }
       
       const { data: urlData } = supabase.storage
         .from('chat-attachments')
@@ -312,16 +429,23 @@ const ClientMessages = () => {
       
       if (error) throw error;
       
+      toast.success("Voice message sent");
       setAudioBlob(null);
       setRecordingDuration(0);
       await fetchMessages(selectedPartner.partnerId);
       await fetchConversations();
-    } catch (error) {
+    } catch (error: any) {
       console.error("[ClientMessages] Error sending voice message:", error);
+      const errorMessage = error?.message || 'Unknown error';
+      if (errorMessage.includes('Bucket not found')) {
+        toast.error("Storage not configured. Please contact admin.");
+      } else {
+        toast.error(`Failed to send voice message: ${errorMessage}`);
+      }
     } finally {
       setSending(false);
     }
-  }, [selectedPartner, audioBlob, sending, recordingDuration]);
+  }, [selectedPartner, audioBlob, sending, recordingDuration, user?.id, fetchMessages, fetchConversations]);
 
   const togglePlayAudio = useCallback((messageId: string, audioUrl: string) => {
     if (playingAudioId === messageId) {
@@ -398,6 +522,13 @@ const ClientMessages = () => {
 
   const formatMessageTime = (dateStr: string) => format(new Date(dateStr), "h:mm a");
 
+  const formatFileSize = (bytes: number | string) => {
+    const size = typeof bytes === 'string' ? parseInt(bytes, 10) : bytes;
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  };
+
   const filteredConversations = searchQuery.trim()
     ? conversations.filter(c => 
         c.partnerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -438,7 +569,7 @@ const ClientMessages = () => {
               <CardHeader className="border-b pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <MessageSquare className="h-5 w-5" />
-                  Chat with Admin
+                  Messages
                   {unreadTotal > 0 && (
                     <Badge className="ml-2 bg-pink-500">{unreadTotal}</Badge>
                   )}
@@ -455,35 +586,56 @@ const ClientMessages = () => {
               </CardHeader>
               <ScrollArea className="flex-1">
                 <div className="p-2">
-                  <button
-                    onClick={() => {
-                      setSelectedPartner({
-                        partnerId: ADMIN_USER_ID,
-                        partnerName: "Admin",
-                        partnerPhoto: null,
-                        lastMessage: "",
-                        lastMessageTime: new Date().toISOString(),
-                        unreadCount: 0
-                      });
-                      fetchMessages(ADMIN_USER_ID);
-                    }}
-                    className={cn(
-                      "w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors text-left",
-                      selectedPartner?.partnerId === ADMIN_USER_ID && "bg-muted"
-                    )}
-                  >
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
-                        A
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">Admin</h4>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {selectedPartner?.lastMessage || "Start a conversation..."}
-                      </p>
+                  {conversations.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No conversations yet</p>
+                      <p className="text-sm">Admin will message you soon</p>
                     </div>
-                  </button>
+                  ) : (
+                    conversations.map((conv) => (
+                      <button
+                        key={conv.partnerId}
+                        onClick={() => {
+                          console.log('[ClientMessages] Selecting conversation:', conv);
+                          setSelectedPartner(conv);
+                          fetchMessages(conv.partnerId);
+                        }}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors text-left",
+                          selectedPartner?.partnerId === conv.partnerId && "bg-muted"
+                        )}
+                      >
+                        <div className="relative">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={conv.partnerPhoto || undefined} />
+                            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                              {conv.partnerName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          {conv.unreadCount > 0 && (
+                            <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-pink-500 text-white text-xs">
+                              {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium truncate">{conv.partnerName}</h4>
+                            <span className="text-xs text-muted-foreground flex-shrink-0">
+                              {formatDistanceToNow(new Date(conv.lastMessageTime), { addSuffix: false })}
+                            </span>
+                          </div>
+                          <p className={cn(
+                            "text-sm truncate",
+                            conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                          )}>
+                            {conv.lastMessage || "No messages yet"}
+                          </p>
+                        </div>
+                      </button>
+                    ))
+                  )}
                 </div>
               </ScrollArea>
             </div>
@@ -532,6 +684,11 @@ const ClientMessages = () => {
                               {msgs.map((msg) => {
                                 const isMine = msg.sender_id === user?.id;
                                 const isVoiceMessage = msg.message_type === 'audio' || msg.message.startsWith('🎤');
+                                const hasAttachment = msg.attachment_url;
+                                const attachmentUrl = msg.attachment_url;
+                                const attachmentName = msg.attachment_name;
+                                const attachmentMimeType = msg.attachment_mime_type;
+                                const isImageAttachment = attachmentMimeType?.startsWith('image/');
                                 
                                 return (
                                   <div
@@ -549,12 +706,13 @@ const ClientMessages = () => {
                                           : "bg-muted text-foreground rounded-bl-md"
                                       )}
                                     >
-                                      {isVoiceMessage && msg.attachment_url ? (
+                                      {/* Voice Message */}
+                                      {isVoiceMessage && attachmentUrl ? (
                                         <div className="flex items-center gap-2">
                                           <Button
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() => togglePlayAudio(msg.id, msg.attachment_url)}
+                                            onClick={() => togglePlayAudio(msg.id, attachmentUrl)}
                                             className={cn("h-10 w-10 rounded-full", isMine ? "text-white" : "text-pink-500")}
                                           >
                                             {playingAudioId === msg.id ? (
@@ -568,11 +726,56 @@ const ClientMessages = () => {
                                               Voice message
                                             </p>
                                             <p className={cn("text-xs", isMine ? "text-white/70" : "text-muted-foreground")}>
-                                              {msg.attachment_name || 'Audio'}
+                                              {attachmentName || 'Audio'}
                                             </p>
                                           </div>
                                         </div>
+                                      ) : hasAttachment && isImageAttachment ? (
+                                        /* Image Attachment */
+                                        <div>
+                                          <a href={attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                            <img 
+                                              src={attachmentUrl} 
+                                              alt={attachmentName || 'Image'} 
+                                              className="rounded-lg max-w-full cursor-pointer hover:opacity-90"
+                                            />
+                                          </a>
+                                          {msg.message && msg.message !== `[${attachmentName}]` && (
+                                            <p className="break-words mt-2">{msg.message}</p>
+                                          )}
+                                        </div>
+                                      ) : hasAttachment ? (
+                                        /* Document/File Attachment (PDF, DOC, etc.) */
+                                        <div className="flex items-center gap-3">
+                                          <div className={cn(
+                                            "h-12 w-12 rounded-lg flex items-center justify-center",
+                                            isMine ? "bg-white/20" : "bg-primary/10"
+                                          )}>
+                                            <FileIcon className={cn("h-6 w-6", isMine ? "text-white" : "text-primary")} />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <p className={cn("text-sm font-medium truncate", isMine ? "text-white" : "text-foreground")}>
+                                              {attachmentName || 'Document'}
+                                            </p>
+                                            {msg.attachment_size && (
+                                              <p className={cn("text-xs", isMine ? "text-white/70" : "text-muted-foreground")}>
+                                                {formatFileSize(msg.attachment_size)}
+                                              </p>
+                                            )}
+                                          </div>
+                                          <a 
+                                            href={attachmentUrl} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            download={attachmentName}
+                                          >
+                                            <Button size="sm" variant="ghost" className={cn(isMine ? "text-white hover:text-white/80" : "")}>
+                                              <Download className="h-4 w-4" />
+                                            </Button>
+                                          </a>
+                                        </div>
                                       ) : (
+                                        /* Text Message */
                                         <p className="break-words">{msg.message}</p>
                                       )}
                                       <p
