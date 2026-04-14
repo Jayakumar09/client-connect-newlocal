@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
 import { AuthProvider } from "./hooks/useAuth";
 import { BackupProvider } from "./contexts/BackupContext";
 import { getAppConfig } from "./lib/config";
@@ -29,28 +28,15 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const [config, setConfig] = useState<{ isAdmin: boolean; isClient: boolean } | null>(null);
-
-  useEffect(() => {
-    // Detect app type on client side
-    const appConfig = getAppConfig();
-    setConfig({
-      isAdmin: appConfig.isAdmin,
-      isClient: appConfig.isClient,
-    });
-  }, []);
-
-  // Show loading while detecting config
-  if (!config) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // Detect config synchronously to avoid blank screen
+  const config = getAppConfig();
+  
+  console.log('[App] Rendering with config:', {
+    isAdmin: config.isAdmin,
+    isClient: config.isClient,
+    mode: config.mode,
+    apiUrl: config.apiUrl,
+  });
 
   // Admin Routes - accessible from admin subdomain
   const adminRoutes = (
