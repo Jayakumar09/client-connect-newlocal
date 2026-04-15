@@ -89,21 +89,56 @@ function ProtectedClientRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Admin login page (public) - FIXED: no hardcoded redirect
+// Admin login page (public) - SIMPLIFIED for debugging
 function AdminLogin() {
   console.log('[Admin] Rendering AdminLogin');
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
   
+  // Wait for auth to load
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div>
+      </div>
+    );
+  }
+  
+  // Already logged in as admin
   if (user && isAdmin) {
     return <Navigate to="/admin/dashboard" replace />;
   }
   
-  return <Auth />;
+  // Show a simple login placeholder first to debug
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        <h1 className="text-2xl font-bold text-center mb-6">Admin Login</h1>
+        <p className="text-gray-600 text-center mb-4">Admin login component loading...</p>
+        <div className="text-sm text-gray-400">Auth: {user ? 'logged in' : 'not logged in'}</div>
+      </div>
+    </div>
+  );
 }
 
-// Admin routes
+// Admin routes - WRAPPED with safety
 function AdminRoutes() {
   console.log('[Admin] === AdminRoutes START ===');
+  
+  // Safety wrapper around entire admin route tree
+  const { user, loading } = useAuth();
+  
+  console.log('[Admin] Auth state - loading:', loading, 'user:', !!user);
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600 mx-auto mb-4"></div>
+          <p>Loading admin...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <ErrorBoundary>
@@ -124,7 +159,6 @@ function AdminRoutes() {
             <AdminMessages />
           </ProtectedAdminRoute>
         } />
-        {/* Root path: check auth first via element, or serve login */}
         <Route path="/" element={
           <AdminRootHandler />
         } />
@@ -149,9 +183,19 @@ function AdminRootHandler() {
   return <Navigate to="/admin-login" replace />;
 }
 
-// Client routes
+// Client routes - SIMPLIFIED for stability
 function ClientRoutes() {
   console.log('[Client] === ClientRoutes START ===');
+  
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div>
+      </div>
+    );
+  }
   
   return (
     <ErrorBoundary>
@@ -205,7 +249,6 @@ function ClientRoutes() {
           </ProtectedClientRoute>
         } />
         <Route path="/install" element={<Install />} />
-        {/* Root path: check auth first via element */}
         <Route path="/" element={
           <ClientRootHandler />
         } />
