@@ -30,36 +30,50 @@ function getHostname(): string {
 
 // Get subdomain from hostname (e.g., "admin" from "admin.vijayalakshmiboyarmatrimony.com")
 export function getSubdomain(hostname: string): string | null {
-  if (!hostname) return null;
+  if (!hostname) {
+    console.log('[Config] getSubdomain: hostname is empty');
+    return null;
+  }
+  
+  console.log('[Config] getSubdomain checking:', hostname);
   
   // localhost has no subdomain
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    console.log('[Config] getSubdomain: localhost detected');
     return null;
   }
   
   const adminDomain = import.meta.env.VITE_ADMIN_DOMAIN || 'admin.vijayalakshmiboyarmatrimony.com';
   const clientDomain = import.meta.env.VITE_CLIENT_DOMAIN || 'app.vijayalakshmiboyarmatrimony.com';
   
+  console.log('[Config] getSubdomain - adminDomain:', adminDomain);
+  console.log('[Config] getSubdomain - clientDomain:', clientDomain);
+  
   // Check if hostname ends with admin domain (with subdomain prefix)
   if (hostname.endsWith(`.${adminDomain}`)) {
+    console.log('[Config] getSubdomain: matches admin wildcard');
     return 'admin';
   }
   
   // Check if hostname ends with client domain (with subdomain prefix)
   if (hostname.endsWith(`.${clientDomain}`)) {
+    console.log('[Config] getSubdomain: matches client wildcard');
     return 'app';
   }
   
   // Exact match for admin domain (no subdomain)
   if (hostname === adminDomain) {
+    console.log('[Config] getSubdomain: exact admin domain match');
     return 'admin';
   }
   
   // Exact match for client domain (no subdomain)
   if (hostname === clientDomain) {
+    console.log('[Config] getSubdomain: exact client domain match');
     return 'app';
   }
   
+  console.log('[Config] getSubdomain: no match, returning null');
   return null;
 }
 
@@ -97,15 +111,19 @@ function getDeploymentMode(): DeploymentMode {
 // Detect subdomain from hostname
 function detectArea(): AppArea {
   const hostname = getHostname();
-  console.log('[Config] Detecting area for hostname:', hostname);
+  console.log('[Config] === DETECT AREA START ===');
+  console.log('[Config] Full hostname:', hostname);
   
   // Localhost development - use path-based fallback
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     console.log('[Config] Localhost detected, using path-based fallback');
     const path = window.location.pathname;
+    console.log('[Config] Path:', path);
     if (path.startsWith('/admin') || path.includes('/admin/')) {
+      console.log('[Config] -> Returning admin (localhost path)');
       return 'admin';
     }
+    console.log('[Config] -> Returning client (localhost default)');
     return 'client';
   }
   
@@ -113,27 +131,31 @@ function detectArea(): AppArea {
   if (isPagesDevHost(hostname)) {
     console.log('[Config] Pages.dev preview detected, using path-based fallback');
     const path = window.location.pathname;
+    console.log('[Config] Path:', path);
     if (path.startsWith('/admin') || path.includes('/admin/')) {
+      console.log('[Config] -> Returning admin (pages.dev path)');
       return 'admin';
     }
+    console.log('[Config] -> Returning client (pages.dev default)');
     return 'client';
   }
   
   // Production subdomain detection
   const subdomain = getSubdomain(hostname);
+  console.log('[Config] Subdomain result:', subdomain);
   
   if (subdomain === 'admin') {
-    console.log('[Config] Admin subdomain detected');
+    console.log('[Config] -> Returning admin (subdomain match)');
     return 'admin';
   }
   
   if (subdomain === 'app') {
-    console.log('[Config] Client/App subdomain detected');
+    console.log('[Config] -> Returning client (app subdomain match)');
     return 'client';
   }
   
   // Unknown domain - default to client for safety
-  console.log('[Config] Unknown domain, defaulting to client');
+  console.log('[Config] -> Returning client (unknown domain fallback)');
   return 'client';
 }
 

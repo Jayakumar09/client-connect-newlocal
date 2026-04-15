@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { BackupProvider } from "./contexts/BackupContext";
 import { getAppConfig, getLogoutRedirectUrl } from "./lib/config";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import AdminDashboard from "./pages/AdminDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
 import Auth from "./pages/Auth";
@@ -33,7 +34,14 @@ function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
   
   if (!user) {
@@ -54,7 +62,14 @@ function ProtectedClientRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
   
   if (!user) {
@@ -84,121 +99,143 @@ function AdminLogin() {
 
 // Admin routes
 function AdminRoutes() {
+  console.log('[AdminRoutes] Rendering admin routes');
+  
   return (
-    <Routes>
-      <Route path="/admin-login" element={<AdminLogin />} />
-      <Route path="/admin/dashboard" element={
-        <ProtectedAdminRoute>
-          <AdminDashboard />
-        </ProtectedAdminRoute>
-      } />
-      <Route path="/admin/payments" element={
-        <ProtectedAdminRoute>
-          <AdminPayments />
-        </ProtectedAdminRoute>
-      } />
-      <Route path="/admin/messages" element={
-        <ProtectedAdminRoute>
-          <AdminMessages />
-        </ProtectedAdminRoute>
-      } />
-      <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin/dashboard" element={
+          <ProtectedAdminRoute>
+            <AdminDashboard />
+          </ProtectedAdminRoute>
+        } />
+        <Route path="/admin/payments" element={
+          <ProtectedAdminRoute>
+            <AdminPayments />
+          </ProtectedAdminRoute>
+        } />
+        <Route path="/admin/messages" element={
+          <ProtectedAdminRoute>
+            <AdminMessages />
+          </ProtectedAdminRoute>
+        } />
+        <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }
 
 // Client routes
 function ClientRoutes() {
+  console.log('[ClientRoutes] Rendering client routes');
+  
   return (
-    <Routes>
-      <Route path="/client-auth" element={<ClientAuth />} />
-      <Route path="/client-dashboard" element={
-        <ProtectedClientRoute>
-          <ClientDashboard />
-        </ProtectedClientRoute>
-      } />
-      <Route path="/client-profile" element={
-        <ProtectedClientRoute>
-          <ClientProfile />
-        </ProtectedClientRoute>
-      } />
-      <Route path="/client-messages" element={
-        <ProtectedClientRoute>
-          <ClientMessages />
-        </ProtectedClientRoute>
-      } />
-      <Route path="/browse" element={
-        <ProtectedClientRoute>
-          <Browse />
-        </ProtectedClientRoute>
-      } />
-      <Route path="/plans" element={<Plans />} />
-      <Route path="/payments" element={
-        <ProtectedClientRoute>
-          <Payments />
-        </ProtectedClientRoute>
-      } />
-      <Route path="/subscriptions" element={
-        <ProtectedClientRoute>
-          <Subscriptions />
-        </ProtectedClientRoute>
-      } />
-      <Route path="/messages" element={
-        <ProtectedClientRoute>
-          <Messages />
-        </ProtectedClientRoute>
-      } />
-      <Route path="/help" element={<Help />} />
-      <Route path="/notifications" element={
-        <ProtectedClientRoute>
-          <Notifications />
-        </ProtectedClientRoute>
-      } />
-      <Route path="/shortlists" element={
-        <ProtectedClientRoute>
-          <Shortlists />
-        </ProtectedClientRoute>
-      } />
-      <Route path="/install" element={<Install />} />
-      <Route path="/" element={<Navigate to="/client-dashboard" replace />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/client-auth" element={<ClientAuth />} />
+        <Route path="/client-dashboard" element={
+          <ProtectedClientRoute>
+            <ClientDashboard />
+          </ProtectedClientRoute>
+        } />
+        <Route path="/client-profile" element={
+          <ProtectedClientRoute>
+            <ClientProfile />
+          </ProtectedClientRoute>
+        } />
+        <Route path="/client-messages" element={
+          <ProtectedClientRoute>
+            <ClientMessages />
+          </ProtectedClientRoute>
+        } />
+        <Route path="/browse" element={
+          <ProtectedClientRoute>
+            <Browse />
+          </ProtectedClientRoute>
+        } />
+        <Route path="/plans" element={<Plans />} />
+        <Route path="/payments" element={
+          <ProtectedClientRoute>
+            <Payments />
+          </ProtectedClientRoute>
+        } />
+        <Route path="/subscriptions" element={
+          <ProtectedClientRoute>
+            <Subscriptions />
+          </ProtectedClientRoute>
+        } />
+        <Route path="/messages" element={
+          <ProtectedClientRoute>
+            <Messages />
+          </ProtectedClientRoute>
+        } />
+        <Route path="/help" element={<Help />} />
+        <Route path="/notifications" element={
+          <ProtectedClientRoute>
+            <Notifications />
+          </ProtectedClientRoute>
+        } />
+        <Route path="/shortlists" element={
+          <ProtectedClientRoute>
+            <Shortlists />
+          </ProtectedClientRoute>
+        } />
+        <Route path="/install" element={<Install />} />
+        <Route path="/" element={<Navigate to="/client-dashboard" replace />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }
 
 function AppRoutes() {
   const config = getAppConfig();
-  const { isAdmin, isClient, area } = config;
+  const { isAdmin, isClient, area, hostname } = config;
   
-  console.log('[App] Rendering with config:', {
-    area,
-    isAdmin,
-    isClient,
-    mode: config.mode,
-    hostname: config.hostname,
-  });
+  // Debug logging for production troubleshooting
+  console.log('[App] === RENDER START ===');
+  console.log('[App] Hostname:', hostname);
+  console.log('[App] Detected area:', area);
+  console.log('[App] isAdmin:', isAdmin);
+  console.log('[App] isClient:', isClient);
+  console.log('[App] Mode:', config.mode);
+  console.log('[App] API URL:', config.apiUrl);
 
   // Render based on detected area
   if (isAdmin) {
+    console.log('[App] Rendering AdminRoutes');
     return <AdminRoutes />;
   }
   
+  console.log('[App] Rendering ClientRoutes');
   return <ClientRoutes />;
+}
+
+// Global error boundary wrapper
+function AppErrorBoundary({ children }: { children: React.ReactNode }) {
+  return (
+    <ErrorBoundary>
+      {children}
+    </ErrorBoundary>
+  );
 }
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <AuthProvider>
-        <BackupProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </BackupProvider>
-      </AuthProvider>
+      <AppErrorBoundary>
+        <AuthProvider>
+          <BackupProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </BackupProvider>
+        </AuthProvider>
+      </AppErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
 );
