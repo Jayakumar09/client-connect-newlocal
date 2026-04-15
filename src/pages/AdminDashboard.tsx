@@ -329,11 +329,9 @@ const AdminDashboard = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img 
-                src={logoImage}
-                alt="Sri Lakshmi" 
-                className="w-12 h-12 object-contain"
-              />
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold text-2xl">
+                SL
+              </div>
               <div className="flex-1 text-center">
                 <h1 className="text-3xl font-cursive bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                   SRI LAKSHMI MANGALYA MALAI
