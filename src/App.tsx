@@ -421,16 +421,18 @@ function AppErrorBoundary({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const config = getAppConfig();
-  console.log('[Isolate] Layer: BrowserRouter + ErrorBoundary + AuthProvider + area branch + AdminRoutes');
+  console.log('[Isolate] Layer: BrowserRouter + ErrorBoundary + AuthProvider + BackupProvider + area branch + AdminRoutes');
   return (
     <BrowserRouter>
       <ErrorBoundary>
         <AuthProvider>
-          {config.isAdmin ? (
-            <AdminRoutesWrapper />
-          ) : (
-            <ClientRoutes />
-          )}
+          <BackupProvider>
+            {config.isAdmin ? (
+              <AdminRoutesWrapper />
+            ) : (
+              <ClientRoutes />
+            )}
+          </BackupProvider>
         </AuthProvider>
       </ErrorBoundary>
     </BrowserRouter>
