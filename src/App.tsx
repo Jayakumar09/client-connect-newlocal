@@ -124,12 +124,29 @@ function AdminRoutes() {
             <AdminMessages />
           </ProtectedAdminRoute>
         } />
-        {/* No root redirect - serve dashboard directly for admin */}
-        <Route path="/" element={<AdminDashboard />} />
+        {/* Root path: check auth first via element, or serve login */}
+        <Route path="/" element={
+          <AdminRootHandler />
+        } />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </ErrorBoundary>
   );
+}
+
+// Handle root path - redirect to dashboard or show login
+function AdminRootHandler() {
+  const { user, isAdmin, loading } = useAuth();
+  
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  
+  if (user && isAdmin) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+  
+  return <Navigate to="/admin-login" replace />;
 }
 
 // Client routes
@@ -188,12 +205,36 @@ function ClientRoutes() {
           </ProtectedClientRoute>
         } />
         <Route path="/install" element={<Install />} />
-        {/* No root redirect - serve dashboard directly */}
-        <Route path="/" element={<ClientDashboard />} />
+        {/* Root path: check auth first via element */}
+        <Route path="/" element={
+          <ClientRootHandler />
+        } />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </ErrorBoundary>
   );
+}
+
+// Handle root path - redirect to dashboard or show login
+function ClientRootHandler() {
+  const { user, isAdmin, loading } = useAuth();
+  
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  
+  // If admin user, redirect to admin
+  if (user && isAdmin) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+  
+  // If client user, redirect to client dashboard
+  if (user && !isAdmin) {
+    return <Navigate to="/client-dashboard" replace />;
+  }
+  
+  // Not logged in - go to client auth
+  return <Navigate to="/client-auth" replace />;
 }
 
 function AppRoutes() {
