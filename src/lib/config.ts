@@ -249,7 +249,10 @@ export function useAppConfig() {
 
 export function getApiEndpoint(path: string): string {
   const config = getAppConfig();
-  const baseUrl = config.apiUrl.replace(/\/$/, ''); // Remove trailing slash
+  let baseUrl = config.apiUrl.replace(/\/$/, ''); // Remove trailing slash
+  if (!baseUrl) return '';
+  // Handle empty path case - don't add trailing slash to base
+  if (!path) return baseUrl;
   const apiPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${apiPath}`;
 }
