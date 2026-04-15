@@ -37,8 +37,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip chrome-extension and other non-http(s) requests
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
   // Skip API requests - they should always go to network
   if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  // Skip external requests (including Supabase, backend API)
+  if (url.origin !== self.location.origin) {
     return;
   }
 

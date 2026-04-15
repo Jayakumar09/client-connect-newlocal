@@ -22,6 +22,16 @@ export interface AppConfig {
 function getDeploymentMode(): DeploymentMode {
   const mode = import.meta.env.VITE_DEPLOYMENT_MODE;
   if (mode === 'production') return 'production';
+  
+  // Detect if running on Cloudflare Pages preview
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // Cloudflare Pages preview domains and production domains
+    if (hostname.endsWith('.pages.dev') || hostname.endsWith('.cloudflareapps.com')) {
+      return 'production';
+    }
+  }
+  
   return 'development';
 }
 
@@ -48,6 +58,12 @@ function detectSubdomain(): 'admin' | 'client' {
     return 'client';
   }
   
+  // Cloudflare Pages preview domains - treat as client
+  if (hostname.endsWith('.pages.dev') || hostname.endsWith('.cloudflareapps.com')) {
+    console.log('[Config] Cloudflare Pages preview detected');
+    return 'client';
+  }
+  
   // Production subdomains
   const adminDomain = import.meta.env.VITE_ADMIN_DOMAIN || 'admin.vijayalakshmiboyarmatrimony.com';
   const clientDomain = import.meta.env.VITE_CLIENT_DOMAIN || 'app.vijayalakshmiboyarmatrimony.com';
@@ -62,8 +78,7 @@ function detectSubdomain(): 'admin' | 'client' {
     return 'client';
   }
   
-  // Cloudflare preview domains, unknown domains, or any other domain
-  // Default to client mode to ensure app always renders
+  // Unknown domains - default to client mode
   console.log('[Config] Unknown domain, defaulting to client mode');
   return 'client';
 }
@@ -72,19 +87,31 @@ function detectSubdomain(): 'admin' | 'client' {
 function getApiUrl(mode: DeploymentMode): string {
   console.log('[Config] Getting API URL for mode:', mode);
   
-  if (mode === 'production') {
-    // Production: Use explicit API URL from env or backend URL
-    const apiDomain = import.meta.env.VITE_API_URL || 'https://matrimony-backend-8hk0.onrender.com';
-    console.log('[Config] Production API URL:', apiDomain);
-    return apiDomain;
+  // Always prefer explicit VITE_API_BASE_URL from env (takes priority in all modes)
+  const explicitApiUrl = import.meta.env.VITE_API_BASE_URL;
+  if (explicitApiUrl) {
+    console.log('[Config] Using VITE_API_BASE_URL:', explicitApiUrl);
+    return explicitApiUrl;
   }
   
-  // Development fallback
-  const devUrl = import.meta.env.VITE_API_URL || 
-                 import.meta.env.VITE_BACKUP_API_URL || 
-                 'http://localhost:3001';
-  console.log('[Config] Development API URL:', devUrl);
-  return devUrl;
+  // Fallback to VITE_API_URL for backward compatibility
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl) {
+    console.log('[Config] Using VITE_API_URL (fallback):', apiUrl);
+    return apiUrl;
+  }
+  
+  // Development fallback only for localhost
+  if (mode === 'development') {
+    const devUrl = 'http://localhost:3001';
+    console.log('[Config] Development API URL (localhost fallback):', devUrl);
+    return devUrl;
+  }
+  
+  // Production without explicit URL - use default Render backend
+  const defaultProdUrl = 'https://matrimony-backend-8hk0.onrender.com';
+  console.log('[Config] Production API URL (default):', defaultProdUrl);
+  return defaultProdUrl;
 }
 
 // Create app configuration
@@ -95,6 +122,10 @@ function createConfig(): AppConfig {
   const isClient = subdomain === 'client';
   
   console.log('[Config] Creating app config:', { mode, subdomain, isAdmin, isClient });
+  
+  // Disable PWA on preview domains (Cloudflare Pages preview)
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isPreview = hostname.endsWith('.pages.dev') || hostname.endsWith('.cloudflareapps.com');
   
   return {
     mode,
@@ -107,8 +138,8 @@ function createConfig(): AppConfig {
     supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
     clientDomain: import.meta.env.VITE_CLIENT_DOMAIN || 'app.vijayalakshmiboyarmatrimony.com',
     adminDomain: import.meta.env.VITE_ADMIN_DOMAIN || 'admin.vijayalakshmiboyarmatrimony.com',
-    // PWA only enabled for client app
-    enablePWA: isClient || mode === 'development',
+    // PWA only enabled for client app in production (not preview domains)
+    enablePWA: isClient && mode === 'production' && !isPreview,
   };
 }
 
