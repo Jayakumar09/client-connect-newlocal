@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Plus, LogOut, Users, UserCheck, AlertCircle, MessageSquare, Heart, CheckCircle2 } from "lucide-react";
+import { Plus, LogOut, Users, UserCheck, AlertCircle, MessageSquare, Heart, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import PersonCard from "@/components/PersonCard";
 import PersonDialog from "@/components/PersonDialog";
 import PersonViewDialog from "@/components/PersonViewDialog";
@@ -238,6 +238,26 @@ const AdminDashboard = () => {
   const handleEditClientProfile = (profile: ClientProfile) => {
     setEditingClientProfile(profile);
     setIsClientDialogOpen(true);
+  };
+
+  const handleDeleteProfile = async (profile: ClientProfile) => {
+    if (!confirm(`Are you sure you want to delete profile for ${profile.full_name}?`)) {
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('client_profiles')
+        .delete()
+        .eq('id', profile.id);
+      
+      if (error) throw error;
+      
+      toast.success('Profile deleted successfully');
+      fetchClientProfiles();
+    } catch (err) {
+      console.error('[AdminDashboard] Delete profile error:', err);
+      toast.error('Failed to delete profile');
+    }
   };
 
   const handleDialogClose = () => {
@@ -546,28 +566,33 @@ const AdminDashboard = () => {
                         {profile.city && <p>📍 {profile.city}, {profile.state}</p>}
                         {profile.occupation && <p>💼 {profile.occupation}</p>}
                       </div>
-                      {isMatched ? (
-                        <div className="grid grid-cols-1 gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleViewClientProfile(profile)}>
-                            View
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleViewClientProfile(profile)}>
-                            View
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="text-green-600 border-green-200 hover:bg-green-50"
-                            onClick={() => handleMarkMatched('client_profile', profile)}
-                          >
-                            <Heart className="w-4 h-4 mr-1" />
-                            Match
-                          </Button>
-                        </div>
-                      )}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleViewClientProfile(profile)}>
+                          View
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-green-600 border-green-200 hover:bg-green-50"
+                          onClick={() => handleMarkMatched('client_profile', profile)}
+                        >
+                          <Heart className="w-4 h-4 mr-1" />
+                          Match
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleEditClientProfile(profile)}>
+                          <Pencil className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                          onClick={() => handleDeleteProfile(profile)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
                       <p className="text-xs text-muted-foreground mt-2 text-center">
                         {isMatched ? 'Profile matched successfully' : 'Admin can only modify payment status'}
                       </p>
