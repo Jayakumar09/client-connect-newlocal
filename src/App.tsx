@@ -25,6 +25,11 @@ import Notifications from "./pages/Notifications";
 import Shortlists from "./pages/Shortlists";
 import NotFound from "./pages/NotFound";
 import { lazy, Suspense } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard").then(m => ({ default: m.default })));
 
@@ -38,6 +43,9 @@ function AdminRoutesWrapper() {
   function AdminLogin() {
     console.log('[Admin] Rendering AdminLogin');
     const { user, isAdmin, loading } = useAuth();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [signingIn, setSigningIn] = useState(false);
     
     if (loading) {
       return (
@@ -48,16 +56,71 @@ function AdminRoutesWrapper() {
     }
     
     if (user && isAdmin) {
+      console.log('[Admin] User already logged in, redirecting to /admin/dashboard');
       return <Navigate to="/admin/dashboard" replace />;
     }
     
+    const handleSignIn = async (e: React.FormEvent) => {
+      e.preventDefault();
+      console.log('[Admin] Login submit start, email:', email);
+      setSigningIn(true);
+      
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (error) {
+          console.error('[Admin] Login error:', error.message);
+          toast.error(error.message);
+        } else {
+          console.log('[Admin] Login success, user:', !!data.user);
+          toast.success('Login successful!');
+        }
+      } catch (err) {
+        console.error('[Admin] Login exception:', err);
+        toast.error('Login failed');
+      } finally {
+        setSigningIn(false);
+      }
+    };
+    
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-center mb-6">Admin Login</h1>
-          <p className="text-gray-600 text-center mb-4">Please sign in to access admin area</p>
-          <div className="text-sm text-gray-400">Auth: {user ? 'logged in' : 'not logged in'}</div>
-        </div>
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Admin Login</CardTitle>
+            <CardDescription className="text-center">Sign in to access admin area</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  type="email"
+                  placeholder="admin@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Password</label>
+                <Input
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={signingIn}>
+                {signingIn ? 'Signing in...' : 'Sign In'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -66,7 +129,12 @@ function AdminRoutesWrapper() {
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div></div>}>
       <Routes>
         <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/dashboard" element={
+          <div>
+            <div className="p-2 bg-blue-100 text-blue-800">[Admin] Rendering /admin/dashboard</div>
+            <AdminDashboard />
+          </div>
+        } />
         <Route path="/admin/payments" element={<div>Admin payments route works</div>} />
         <Route path="/" element={<Navigate to="/admin-login" replace />} />
       </Routes>
