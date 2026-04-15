@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,14 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Mail, Phone, Lock, KeyRound, Heart, Eye, EyeOff, Wand2 } from "lucide-react";
 import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { 
+  signUpClient, 
+  signInClient, 
+  sendPhoneOtp as authSendPhoneOtp, 
+  verifyPhoneOtp as authVerifyPhoneOtp, 
+  resetPassword as authResetPassword,
+  getCooldownStatus 
+} from "@/integrations/auth";
 
 const emailSignupSchema = z.object({
   email: z.string().trim().email({ message: "Invalid email address" }),
@@ -73,6 +81,25 @@ const ClientAuth = () => {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [actionBlocked, setActionBlocked] = useState(false);
+
+  const updateCooldown = useCallback(() => {
+    const status = getCooldownStatus();
+    if (status.client > 0) {
+      setCooldownSeconds(status.client);
+      setActionBlocked(true);
+    } else {
+      setCooldownSeconds(0);
+      setActionBlocked(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    updateCooldown();
+    const interval = setInterval(updateCooldown, 1000);
+    return () => clearInterval(interval);
+  }, [updateCooldown]);
 
   const generatePassword = () => {
     const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -125,6 +152,12 @@ const ClientAuth = () => {
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (actionBlocked) {
+      toast.error(`Please wait ${cooldownSeconds} seconds before trying again`);
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -138,123 +171,33 @@ const ClientAuth = () => {
         profileCreatedFor 
       });
 
-      // Check if email already exists in client_profiles
-      const { data: existingProfile, error: checkError } = await supabase
-        .from("client_profiles")
-        .select("id, email")
-        .eq("email", validated.email.toLowerCase())
-        .maybeSingle();
+      const result = await signUpClient(
+        validated.email,
+        validated.password,
+        {
+          fullName: validated.fullName,
+          gender: validated.gender,
+          dateOfBirth: validated.dateOfBirth,
+          religion: validated.religion,
+          profileCreatedFor: validated.profileCreatedFor,
+        }
+      );
 
-      if (checkError) {
-        console.error("[ClientAuth] Error checking existing profile:", checkError);
-      }
-
-      if (existingProfile) {
-        toast.error("An account with this email already exists. Please sign in instead.");
+      if (!result.success) {
+        toast.error(result.error || 'Registration failed');
         setLoading(false);
+        updateCooldown();
         return;
       }
 
-      // Step 1: Create the auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: validated.email,
-        password: validated.password,
-      });
-
-      if (authError) {
-        console.error("[ClientAuth] Auth signup error:", {
-          message: authError.message,
-          status: authError.status,
-          code: authError.code,
-          details: authError,
-        });
-        throw authError;
+      if (result.needsProfileCreation) {
+        toast.success('Account created! Please complete your profile...');
+        navigate('/client-profile');
+      } else {
+        toast.success('Welcome! Redirecting...');
+        navigate('/browse');
       }
       
-      if (!authData.user) {
-        throw new Error("Failed to create user account - no user data returned");
-      }
-
-      console.log("[ClientAuth] User created, ID:", authData.user.id);
-
-      // Step 2: Immediately sign in to get a valid session with JWT
-      // This is required because RLS policies need auth.uid() to match user_id
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: validated.email,
-        password: validated.password,
-      });
-
-      if (signInError) {
-        // If sign-in fails (e.g., email confirmation required), handle gracefully
-        console.error("[ClientAuth] Sign-in after signup failed:", {
-          message: signInError.message,
-          status: signInError.status,
-          code: signInError.code,
-          emailConfirmed: authData.user.email_confirmed_at,
-        });
-        
-        // If email confirmation is required, prompt user
-        if (signInError.message.includes("Email not confirmed") || 
-            signInError.status === 400) {
-          toast.success("Account created! Please check your email and click the confirmation link. Then sign in to complete your profile.");
-          // Reset form and switch to sign in tab
-          setEmail("");
-          setPassword("");
-          setFullName("");
-          setGender("");
-          setDateOfBirth("");
-          setReligion("");
-          setProfileCreatedFor("");
-          setLoading(false);
-          return;
-        }
-        
-        throw signInError;
-      }
-
-      console.log("[ClientAuth] Sign-in successful, session obtained");
-
-      // Step 3: Now insert the client profile (we have a valid JWT/session)
-      const { error: profileError } = await supabase
-        .from("client_profiles")
-        .insert({
-          user_id: authData.user.id,
-          full_name: validated.fullName,
-          email: validated.email,
-          gender: validated.gender,
-          date_of_birth: validated.dateOfBirth,
-          religion: validated.religion,
-          profile_created_for: validated.profileCreatedFor,
-          country: "India",
-          country_code: "+91",
-          is_profile_active: true,
-          show_phone_number: false,
-          payment_status: "free",
-          created_by: "client",
-        });
-
-      if (profileError) {
-        console.error("[ClientAuth] Profile creation error details:", {
-          message: profileError.message,
-          details: profileError.details,
-          hint: profileError.hint,
-          code: profileError.code,
-        });
-        
-        // Check for unique constraint violation (duplicate user_id)
-        if (profileError.code === '23505') {
-          throw new Error("A profile already exists for this account. Please sign in.");
-        }
-        
-        throw new Error(`Failed to create profile: ${profileError.message}`);
-      }
-
-      console.log("[ClientAuth] Profile created successfully");
-
-      toast.success("Account created successfully! Redirecting to complete your profile...");
-      navigate("/client-profile");
-      
-      // Reset form
       setEmail("");
       setPassword("");
       setFullName("");
@@ -265,12 +208,8 @@ const ClientAuth = () => {
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
-      } else if (error instanceof Error) {
-        console.error("[ClientAuth] Signup error:", error.message);
-        toast.error(error.message);
       } else {
-        console.error("[ClientAuth] Unknown signup error:", error);
-        toast.error("An unexpected error occurred. Please try again.");
+        toast.error('Registration failed. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -279,50 +218,33 @@ const ClientAuth = () => {
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (actionBlocked) {
+      toast.error(`Please wait ${cooldownSeconds} seconds before trying again`);
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const result = await signInClient(email, password);
 
-      if (error) throw error;
+      if (!result.success) {
+        toast.error(result.error || 'Login failed');
+        setLoading(false);
+        updateCooldown();
+        return;
+      }
 
-      toast.success("Signed in successfully!");
+      toast.success('Signed in successfully!');
       
-      // Check if admin
-      const isAdmin = email === 'vijayalakshmijayakumar45@gmail.com';
-      
-      if (isAdmin) {
-        navigate("/dashboard");
+      if (result.needsProfileCreation) {
+        navigate('/client-profile');
       } else {
-        // Check if user has a profile
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: profile, error: profileError } = await supabase
-            .from("client_profiles")
-            .select("id")
-            .eq("user_id", user.id)
-            .maybeSingle();
-
-          if (profileError) {
-            console.error("[ClientAuth] Error checking profile:", profileError);
-          }
-          
-          if (profile) {
-            navigate("/browse");
-          } else {
-            navigate("/client-profile");
-          }
-        } else {
-          navigate("/client-profile");
-        }
+        navigate('/browse');
       }
     } catch (error) {
-      if (error instanceof Error) {
-        toast.error(error.message);
-      }
+      toast.error('Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -330,6 +252,12 @@ const ClientAuth = () => {
 
   const handlePhoneSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (actionBlocked) {
+      toast.error(`Please wait ${cooldownSeconds} seconds before trying again`);
+      return;
+    }
+    
     setLoading(true);
 
     try {

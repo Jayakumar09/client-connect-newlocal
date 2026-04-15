@@ -38,16 +38,32 @@ const queryClient = new QueryClient();
 
 console.log('[Boot] App.tsx loaded - FULL VERSION');
 
+import { signInAdmin, getCooldownStatus } from '@/integrations/auth';
+
 function AdminRoutesWrapper() {
-  console.log('[Isolate] AdminRoutesWrapper rendering');
-  
   function AdminLogin() {
-    console.log('[Admin] Rendering AdminLogin');
     const { user, isAdmin, loading } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [signingIn, setSigningIn] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState("");
+    
+    const [cooldownSeconds, setCooldownSeconds] = useState(0);
+    
+    useEffect(() => {
+      const updateCooldown = () => {
+        const status = getCooldownStatus();
+        if (status.admin > 0) {
+          setCooldownSeconds(status.admin);
+        } else {
+          setCooldownSeconds(0);
+        }
+      };
+      updateCooldown();
+      const interval = setInterval(updateCooldown, 1000);
+      return () => clearInterval(interval);
+    }, []);
     
     if (loading) {
       return (
@@ -58,31 +74,30 @@ function AdminRoutesWrapper() {
     }
     
     if (user && isAdmin) {
-      console.log('[Admin] User already logged in, redirecting to /admin/dashboard');
       return <Navigate to="/admin/dashboard" replace />;
     }
     
     const handleSignIn = async (e: React.FormEvent) => {
       e.preventDefault();
-      console.log('[Admin] Login submit start, email:', email);
+      if (cooldownSeconds > 0) {
+        setError(`Please wait ${cooldownSeconds} seconds`);
+        return;
+      }
       setSigningIn(true);
+      setError("");
       
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const result = await signInAdmin(email, password);
         
-        if (error) {
-          console.error('[Admin] Login error:', error.message);
-          toast.error(error.message);
-        } else {
-          console.log('[Admin] Login success, user:', !!data.user);
-          toast.success('Login successful!');
+        if (!result.success) {
+          setError(result.error || 'Login failed');
+          setSigningIn(false);
+          return;
         }
+        
+        toast.success('Login successful!');
       } catch (err) {
-        console.error('[Admin] Login exception:', err);
-        toast.error('Login failed');
+        setError('Login failed. Please try again.');
       } finally {
         setSigningIn(false);
       }
@@ -127,8 +142,9 @@ function AdminRoutesWrapper() {
                   </button>
                 </div>
               </div>
-              <Button type="submit" className="w-full" disabled={signingIn}>
-                {signingIn ? 'Signing in...' : 'Sign In'}
+              {error && <p className="text-sm text-red-500">{error}</p>}
+              <Button type="submit" className="w-full" disabled={signingIn || cooldownSeconds > 0}>
+                {signingIn ? 'Signing in...' : cooldownSeconds > 0 ? `Wait ${cooldownSeconds}s...` : 'Sign In'}
               </Button>
             </form>
           </CardContent>
