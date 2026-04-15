@@ -3,110 +3,60 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./hooks/useAuth";
-import { BackupProvider } from "./contexts/BackupContext";
-import { getAppConfig } from "./lib/config";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import ClientDashboard from "./pages/ClientDashboard";
-import ClientAuth from "./pages/ClientAuth";
-import ClientProfile from "./pages/ClientProfile";
-import Browse from "./pages/Browse";
-import Install from "./pages/Install";
-import Plans from "./pages/Plans";
-import Payments from "./pages/Payments";
-import Subscriptions from "./pages/Subscriptions";
-import ClientMessages from "./pages/ClientMessages";
-import Messages from "./pages/Messages";
-import Help from "./pages/Help";
-import Notifications from "./pages/Notifications";
-import Shortlists from "./pages/Shortlists";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-console.log('[Boot] App.tsx loaded');
+console.log('[Boot] App.tsx loaded - MINIMAL VERSION');
 
-// TEMPORARY: Simple div to test if admin host works at all
-function MinimalAdminRoutes() {
-  console.log('[Admin] MinimalAdminRoutes rendering');
+// Even more minimal - no imports that could fail
+function UltraMinimalAdminRoutes() {
+  console.log('[Admin] UltraMinimalAdminRoutes rendering');
   return (
-    <div style={{ padding: 20, textAlign: 'center' }}>
-      <h1>Admin Area Works!</h1>
-      <p>Hostname: {typeof window !== 'undefined' ? window.location.hostname : 'N/A'}</p>
-    </div>
+    <Routes>
+      <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="/admin/dashboard" element={<div style={{padding: 50, textAlign: 'center'}}><h1>Admin Dashboard Works!</h1></div>} />
+    </Routes>
   );
 }
 
 function MinimalAppRoutes() {
-  console.log('[Boot] AppRoutes called');
+  console.log('[Boot] MinimalAppRoutes rendering');
+  
+  // Direct check without using getAppConfig to avoid any config issues
   let isAdmin = false;
-  try {
-    const config = getAppConfig();
-    isAdmin = config.isAdmin;
-    console.log('[Boot] isAdmin:', isAdmin);
-  } catch (e) {
-    console.log('[Boot] getAppConfig error:', e);
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    isAdmin = hostname === 'admin.vijayalakshmiboyarmatrimony.com' || hostname.endsWith('.admin.vijayalakshmiboyarmatrimony.com');
   }
+  
+  console.log('[Boot] isAdmin (direct check):', isAdmin);
   
   if (isAdmin) {
-    console.log('[Boot] Returning MinimalAdminRoutes');
-    return <MinimalAdminRoutes />;
+    return <UltraMinimalAdminRoutes />;
   }
   
-  console.log('[Boot] Returning ClientRoutes');
-  return <ClientRoutesFull />;
-}
-
-function ClientRoutesFull() {
-  return (
-    <ErrorBoundary>
-      <Routes>
-        <Route path="/client-auth" element={<ClientAuth />} />
-        <Route path="/client-dashboard" element={<ClientDashboard />} />
-        <Route path="/client-profile" element={<ClientProfile />} />
-        <Route path="/client-messages" element={<ClientMessages />} />
-        <Route path="/browse" element={<Browse />} />
-        <Route path="/plans" element={<Plans />} />
-        <Route path="/payments" element={<Payments />} />
-        <Route path="/subscriptions" element={<Subscriptions />} />
-        <Route path="/messages" element={<Messages />} />
-        <Route path="/help" element={<Help />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/shortlists" element={<Shortlists />} />
-        <Route path="/install" element={<Install />} />
-        <Route path="/" element={<Navigate to="/client-dashboard" replace />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </ErrorBoundary>
-  );
+  return <div style={{padding: 50}}><h1>Client mode - requires full setup</h1></div>;
 }
 
 const App = () => {
-  console.log('[Boot] App render START');
+  console.log('[Boot] App component rendering');
   
   try {
-    const result = (
+    return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <ErrorBoundary>
-            <AuthProvider>
-              <BackupProvider>
-                <Toaster />
-                <Sonner />
-                <BrowserRouter>
-                  <MinimalAppRoutes />
-                </BrowserRouter>
-              </BackupProvider>
-            </AuthProvider>
+            <BrowserRouter>
+              <MinimalAppRoutes />
+            </BrowserRouter>
           </ErrorBoundary>
         </TooltipProvider>
       </QueryClientProvider>
     );
-    console.log('[Boot] App render END - returning JSX');
-    return result;
   } catch (e) {
-    console.log('[Boot] App render ERROR:', e);
-    return <div>Error: {String(e)}</div>;
+    console.log('[Boot] App render caught error:', e);
+    return <div style={{padding: 50, color: 'red'}}>Error: {String(e)}</div>;
   }
 };
 
