@@ -10,8 +10,9 @@ interface ViewLimitBannerProps {
 
 export const ViewLimitBanner = ({ remainingViews, maxViews, isPaidUser }: ViewLimitBannerProps) => {
   const navigate = useNavigate();
+  const upgradeEnabled = import.meta.env.VITE_ENABLE_UPGRADE === 'true';
 
-  if (isPaidUser) return null;
+  if (isPaidUser || !upgradeEnabled) return null;
 
   const isLow = remainingViews <= 3;
   const isExhausted = remainingViews <= 0;

@@ -26,6 +26,8 @@ type ClientProfile = Tables<"client_profiles"> & {
   match_remarks?: string | null;
 };
 
+const SHOW_UPGRADE_UI = import.meta.env.VITE_ENABLE_UPGRADE === 'true';
+
 const Browse = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -246,10 +248,12 @@ const Browse = () => {
               <Heart className="w-4 h-4 mr-1 text-pink-500" />
               <span className="hidden md:inline">Interests</span>
             </Button>
-            <Button onClick={() => navigate("/plans")} variant="default" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg">
-              <Crown className="w-4 h-4 mr-1" />
-              Upgrade
-            </Button>
+            {SHOW_UPGRADE_UI && (
+              <Button onClick={() => navigate("/plans")} variant="default" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg">
+                <Crown className="w-4 h-4 mr-1" />
+                Upgrade
+              </Button>
+            )}
             <Button 
               onClick={() => navigate("/client-messages")} 
               variant="outline" 
@@ -324,7 +328,7 @@ const Browse = () => {
             </div>
 
             {/* Show locked profiles indicator for free users */}
-            {!isPaidUser && filteredProfiles.length > MAX_FREE_VIEWS && (
+            {SHOW_UPGRADE_UI && !isPaidUser && filteredProfiles.length > MAX_FREE_VIEWS && (
               <div className="mt-8 text-center">
                 <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-100 to-pink-100 px-6 py-4 rounded-lg border border-purple-200">
                   <Lock className="h-5 w-5 text-purple-600" />
@@ -351,40 +355,42 @@ const Browse = () => {
         onClose={() => setViewDialogOpen(false)}
       />
 
-      {/* Limit Reached Dialog */}
-      <Dialog open={limitDialogOpen} onOpenChange={setLimitDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-orange-600">
-              <Lock className="h-5 w-5" />
-              Daily View Limit Reached
-            </DialogTitle>
-            <DialogDescription className="text-left">
-              You've reached your daily limit of {MAX_FREE_VIEWS} profile views. 
-              Upgrade to a premium plan for unlimited profile views and advanced search filters.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-3 mt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setLimitDialogOpen(false)}
-              className="flex-1"
-            >
-              Maybe Later
-            </Button>
-            <Button 
-              onClick={() => {
-                setLimitDialogOpen(false);
-                navigate('/plans');
-              }}
-              className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600"
-            >
-              <Crown className="h-4 w-4 mr-2" />
-              Upgrade Now
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+{/* Limit Reached Dialog - only show if upgrade UI is enabled */}
+        {SHOW_UPGRADE_UI && (
+        <Dialog open={limitDialogOpen} onOpenChange={setLimitDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-orange-600">
+                <Lock className="h-5 w-5" />
+                Daily View Limit Reached
+              </DialogTitle>
+              <DialogDescription className="text-left">
+                You've reached your daily limit of {MAX_FREE_VIEWS} profile views. 
+                Upgrade to a premium plan for unlimited profile views and advanced search filters.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-3 mt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setLimitDialogOpen(false)}
+                className="flex-1"
+              >
+                Maybe Later
+              </Button>
+              <Button 
+                onClick={() => {
+                  setLimitDialogOpen(false);
+                  navigate('/plans');
+                }}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600"
+              >
+                <Crown className="h-4 w-4 mr-2" />
+                Upgrade Now
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        )}
     </div>
   );
 };

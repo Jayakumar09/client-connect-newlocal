@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Filter, ChevronDown, ChevronUp, Lock, Search, X as ClearIcon, Crown, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, Lock, Search, X } from 'lucide-react';
+
+const SHOW_UPGRADE = import.meta.env.VITE_ENABLE_UPGRADE === 'true';
 
 interface AdvancedSearchFiltersProps {
   isPaidUser: boolean;
@@ -151,14 +155,14 @@ export const AdvancedSearchFilters = ({
           </CollapsibleTrigger>
           {activeFilterCount > 0 && (
             <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
-              <X className="h-4 w-4 mr-1" />
+              <ClearIcon className="h-4 w-4 mr-1" />
               Clear all
             </Button>
           )}
         </div>
 
         <CollapsibleContent className="mt-4">
-          {!isPaidUser && (
+          {!isPaidUser && SHOW_UPGRADE && (
             <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
               <div className="flex items-center gap-2 text-purple-700">
                 <Lock className="h-4 w-4" />
