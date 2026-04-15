@@ -15,6 +15,11 @@ const LOG_PREFIX = '[AdminRoutes]';
 function requireAdmin(req: Request, res: Response, next: (err?: Error) => void): void {
   const apiKey = (req.headers['x-admin-api-key'] || req.headers['X-Admin-API-Key']) as string | undefined;
   
+  console.log(`[AdminAuth] Headers received:`, Object.keys(req.headers));
+  console.log(`[AdminAuth] API key present:`, !!apiKey);
+  console.log(`[AdminAuth] Expected key:`, process.env.ADMIN_API_KEY ? 'yes' : 'no');
+  console.log(`[AdminAuth] Keys match:`, apiKey === process.env.ADMIN_API_KEY);
+  
   if (!apiKey) {
     console.error(`${LOG_PREFIX} No API key provided from ${req.ip}`);
     res.status(401).json({ error: 'Unauthorized', code: 'NO_API_KEY', timestamp: new Date().toISOString() });
@@ -22,7 +27,7 @@ function requireAdmin(req: Request, res: Response, next: (err?: Error) => void):
   }
   
   if (apiKey !== process.env.ADMIN_API_KEY) {
-    console.error(`${LOG_PREFIX} Invalid API key from ${req.ip}`);
+    console.error(`${LOG_PREFIX} Invalid API key from ${req.ip}. Received: ${apiKey.substring(0, 8)}... Expected: ${process.env.ADMIN_API_KEY?.substring(0, 8)}...`);
     res.status(401).json({ error: 'Unauthorized', code: 'INVALID_API_KEY', timestamp: new Date().toISOString() });
     return;
   }
