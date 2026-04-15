@@ -7,7 +7,6 @@ import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { BackupProvider } from "./contexts/BackupContext";
 import { getAppConfig, isAdminApp } from "./lib/config";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import AdminDashboard from "./pages/AdminDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
 import Auth from "./pages/Auth";
 import ClientAuth from "./pages/ClientAuth";
@@ -25,10 +24,55 @@ import Help from "./pages/Help";
 import Notifications from "./pages/Notifications";
 import Shortlists from "./pages/Shortlists";
 import NotFound from "./pages/NotFound";
+import { lazy, Suspense } from "react";
+
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard").then(m => ({ default: m.default })));
 
 const queryClient = new QueryClient();
 
 console.log('[Boot] App.tsx loaded - FULL VERSION');
+
+function AdminRoutesWrapper() {
+  console.log('[Isolate] AdminRoutesWrapper rendering');
+  
+  function AdminLogin() {
+    console.log('[Admin] Rendering AdminLogin');
+    const { user, isAdmin, loading } = useAuth();
+    
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div>
+        </div>
+      );
+    }
+    
+    if (user && isAdmin) {
+      return <Navigate to="/admin/dashboard" replace />;
+    }
+    
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+          <h1 className="text-2xl font-bold text-center mb-6">Admin Login</h1>
+          <p className="text-gray-600 text-center mb-4">Please sign in to access admin area</p>
+          <div className="text-sm text-gray-400">Auth: {user ? 'logged in' : 'not logged in'}</div>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div></div>}>
+      <Routes>
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/payments" element={<div>Admin payments route works</div>} />
+        <Route path="/" element={<Navigate to="/admin-login" replace />} />
+      </Routes>
+    </Suspense>
+  );
+}
 
 // Protected route wrapper for admin
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
@@ -307,22 +351,20 @@ function AppErrorBoundary({ children }: { children: React.ReactNode }) {
   );
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AppErrorBoundary>
+export default function App() {
+  const config = getAppConfig();
+  console.log('[Isolate] Layer: BrowserRouter + ErrorBoundary + AuthProvider + area branch + AdminRoutes');
+  return (
+    <BrowserRouter>
+      <ErrorBoundary>
         <AuthProvider>
-          <BackupProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </BackupProvider>
+          {config.isAdmin ? (
+            <AdminRoutesWrapper />
+          ) : (
+            <ClientRoutes />
+          )}
         </AuthProvider>
-      </AppErrorBoundary>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
-
-export default App;
+      </ErrorBoundary>
+    </BrowserRouter>
+  );
+}

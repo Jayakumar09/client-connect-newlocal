@@ -18,7 +18,6 @@ import { StorageSummaryCard } from "@/components/StorageSummary";
 import { Tables } from "@/integrations/supabase/types";
 import { useStorageSummary, useSystemHealth } from "@/hooks/useStorageSummary";
 import { Pencil } from "lucide-react";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
 import { PaginatedRecordGrid } from "@/components/PaginatedRecordGrid";
 import { dedupeUrls } from "@/lib/image-utils";
 
