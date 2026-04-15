@@ -1,9 +1,3 @@
-# Cloudflare Pages SPA Redirects
-# This file ensures all routes serve index.html for SPA routing
-
-# SPA fallback - serve index.html for all routes that don't have a file extension
-/*  /index.html  200
-
-# Cloudflare Pages specific
-# For _redirect format (more flexible):
-# https://developers.cloudflare.com/pages/platform/serving-pages/#single-page-app-spa-redirects
+# Cloudflare Pages SPA Redirects - REMOVED
+# The catch-all /* rule was breaking /assets/* requests
+# SPA routing is now handled by Cloudflare Pages Functions in functions/spa-router.ts
