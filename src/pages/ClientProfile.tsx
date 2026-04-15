@@ -16,7 +16,7 @@ import imageCompression from 'browser-image-compression';
 import logoImage from "@/assets/sri-lakshmi-logo.png";
 import { z } from "zod";
 import { Tables } from "@/integrations/supabase/types";
-import { calculateProfileCompletion, getProfileCompletionBreakdown } from "@/lib/profileCompletion";
+import { calculateProfileCompletion, getProfileCompletionBreakdown, getFieldLabel } from "@/lib/profileCompletion";
 
 type ClientProfile = Tables<"client_profiles"> & {
   match_status?: 'not_matched' | 'matched' | null;
@@ -26,6 +26,7 @@ type ClientProfile = Tables<"client_profiles"> & {
 
 const profileFormSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
+  phone_number: z.string().optional(),
   gender: z.enum(['male', 'female', 'other']),
   date_of_birth: z.string().min(1, "Date of birth is required"),
   religion: z.enum(['hindu', 'muslim', 'christian', 'sikh', 'buddhist', 'jain', 'other']),
@@ -35,6 +36,7 @@ const profileFormSchema = z.object({
   mother_tongue: z.string().optional(),
   height_cm: z.string().optional(),
   weight_kg: z.string().optional(),
+  complexion: z.string().optional(),
   marital_status: z.enum(['never_married', 'divorced', 'widowed', 'awaiting_divorce', 'married']),
   birth_time: z.string().optional(),
   birth_place: z.string().optional(),
@@ -167,6 +169,7 @@ const ClientProfile = () => {
       
       setFormData({
         full_name: data.full_name,
+        phone_number: data.phone_number || '',
         gender: data.gender,
         date_of_birth: data.date_of_birth,
         religion: data.religion,
@@ -176,6 +179,7 @@ const ClientProfile = () => {
         mother_tongue: data.mother_tongue || '',
         height_cm: data.height_cm?.toString() || '',
         weight_kg: data.weight_kg?.toString() || '',
+        complexion: data.complexion || '',
         marital_status: data.marital_status,
         birth_time: data.birth_time || '',
         birth_place: data.birth_place || '',
@@ -338,6 +342,7 @@ const ClientProfile = () => {
       const profileData = {
         user_id: authUser.id,
         full_name: validated.full_name,
+        phone_number: validated.phone_number || null,
         email: authUser.email || validated.caste || null,
         gender: validated.gender,
         date_of_birth: validated.date_of_birth,
@@ -348,6 +353,7 @@ const ClientProfile = () => {
         mother_tongue: validated.mother_tongue || null,
         height_cm: validated.height_cm ? parseInt(validated.height_cm) : null,
         weight_kg: validated.weight_kg ? parseInt(validated.weight_kg) : null,
+        complexion: validated.complexion || null,
         marital_status: validated.marital_status,
         birth_time: validated.birth_time || null,
         birth_place: validated.birth_place || null,
@@ -511,7 +517,7 @@ const ClientProfile = () => {
                             <Circle className="w-3 h-3 text-gray-400" />
                             <span className="text-gray-600">{section.name}</span>
                             {section.missingFields.length > 0 && (
-                              <span className="text-gray-400">({section.missingFields.slice(0, 2).join(', ')}{section.missingFields.length > 2 ? '...' : ''})</span>
+                              <span className="text-gray-400">({section.missingFields.slice(0, 2).map(getFieldLabel).join(', ')}{section.missingFields.length > 2 ? '...' : ''})</span>
                             )}
                           </div>
                         ))}
@@ -644,6 +650,16 @@ const ClientProfile = () => {
                     </select>
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="phone_number">Phone Number</Label>
+                    <Input
+                      id="phone_number"
+                      type="tel"
+                      value={formData.phone_number || ''}
+                      onChange={(e) => handleInputChange('phone_number', e.target.value)}
+                      placeholder="+91 9876543210"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="marital_status">Marital Status *</Label>
                     <select
                       id="marital_status"
@@ -688,6 +704,22 @@ const ClientProfile = () => {
                       onChange={(e) => handleInputChange('weight_kg', e.target.value)}
                       placeholder="70"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="complexion">Complexion</Label>
+                    <select
+                      id="complexion"
+                      value={formData.complexion || ''}
+                      onChange={(e) => handleInputChange('complexion', e.target.value)}
+                      className="w-full h-10 px-3 border rounded-md"
+                    >
+                      <option value="">Select</option>
+                      <option value="very_fair">Very Fair</option>
+                      <option value="fair">Fair</option>
+                      <option value="wheatish">Wheatish</option>
+                      <option value="brown">Brown</option>
+                      <option value="dark">Dark</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="caste">Caste</Label>

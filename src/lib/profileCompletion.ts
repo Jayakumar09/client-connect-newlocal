@@ -14,6 +14,48 @@ export interface ProfileCompletionBreakdown {
   sections: ProfileSectionStatus[];
 }
 
+// Field label mapping for UI display
+export const FIELD_LABELS: Record<string, string> = {
+  full_name: 'Full Name',
+  email: 'Email',
+  phone_number: 'Phone Number',
+  date_of_birth: 'Date of Birth',
+  gender: 'Gender',
+  religion: 'Religion',
+  caste: 'Caste',
+  sub_caste: 'Sub Caste',
+  mother_tongue: 'Mother Tongue',
+  height_cm: 'Height',
+  weight_kg: 'Weight',
+  complexion: 'Complexion',
+  marital_status: 'Marital Status',
+  birth_time: 'Birth Time',
+  birth_place: 'Birth Place',
+  star: 'Star',
+  rasi: 'Rasi',
+  education: 'Education',
+  occupation: 'Occupation',
+  annual_income: 'Annual Income',
+  working_location: 'Working Location',
+  city: 'City',
+  state: 'State',
+  country: 'Country',
+  father_name: 'Father Name',
+  father_occupation: 'Father Occupation',
+  mother_name: 'Mother Name',
+  mother_occupation: 'Mother Occupation',
+  number_of_brothers: 'Brothers',
+  number_of_sisters: 'Sisters',
+  about_me: 'About Me',
+  partner_expectations: 'Partner Expectations',
+  profile_photo: 'Profile Photo',
+  gallery_images: 'Gallery Images',
+};
+
+export function getFieldLabel(field: string): string {
+  return FIELD_LABELS[field] || field;
+}
+
 function isFilled(value: unknown): boolean {
   if (value === null || value === undefined) return false;
   if (typeof value === 'string' && value.trim() === '') return false;
@@ -22,8 +64,8 @@ function isFilled(value: unknown): boolean {
 }
 
 export function isBasicComplete(profile: Partial<ClientProfile>): boolean {
+  // Note: email is not user-editable (from auth), so exclude from completion
   return isFilled(profile.full_name) &&
-         isFilled(profile.email) &&
          isFilled(profile.phone_number) &&
          isFilled(profile.date_of_birth) &&
          isFilled(profile.gender) &&
@@ -85,7 +127,7 @@ export function getProfileCompletionBreakdown(profile: Partial<ClientProfile>): 
     {
       name: 'Basic Information',
       complete: isBasicComplete(profile),
-      fields: ['full_name', 'email', 'phone_number', 'date_of_birth', 'gender', 'religion'],
+      fields: ['full_name', 'phone_number', 'date_of_birth', 'gender', 'religion'],
       missingFields: []
     },
     {

@@ -12,7 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Loader2, LogOut, ArrowLeft, Upload, X, Trash2, Save, User, Mail, Phone, MapPin, Briefcase, Heart, Calendar, AlertCircle, CheckCircle2, Circle } from 'lucide-react';
 import { format } from 'date-fns';
-import { calculateProfileCompletion, getProfileCompletionBreakdown } from '@/lib/profileCompletion';
+import { calculateProfileCompletion, getProfileCompletionBreakdown, getFieldLabel } from '@/lib/profileCompletion';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -437,7 +437,7 @@ const ClientDashboard = () => {
                           <Circle className="w-3 h-3 text-gray-400" />
                           <span className="text-gray-600">{section.name}</span>
                           {section.missingFields.length > 0 && (
-                            <span className="text-gray-400">({section.missingFields.slice(0, 2).join(', ')}{section.missingFields.length > 2 ? '...' : ''})</span>
+                            <span className="text-gray-400">({section.missingFields.slice(0, 2).map(getFieldLabel).join(', ')}{section.missingFields.length > 2 ? '...' : ''})</span>
                           )}
                         </div>
                       ))}
