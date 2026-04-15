@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { getApiEndpoint } from '@/lib/config';
+import { adminFetch } from '@/lib/api';
 
-const API_BASE = getApiEndpoint('');
-const ADMIN_API_KEY = import.meta.env.VITE_ADMIN_API_KEY || '';
 const LOG_PREFIX = '[useStorageSummary]';
 
 export interface StorageSummary {
@@ -195,9 +193,7 @@ export function useStorageSummary() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/storage/summary`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
+      const response = await adminFetch('/api/admin/storage/summary');
       if (!response.ok) throw new Error(`Failed to fetch storage summary: ${response.status}`);
       const data = await response.json();
       console.log(`${LOG_PREFIX} fetchStorage - Success:`, data);
@@ -228,9 +224,7 @@ export function useBackupSummary() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/backups/summary`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
+      const response = await adminFetch('/api/admin/backups/summary');
       if (!response.ok) throw new Error(`Failed to fetch backup summary: ${response.status}`);
       const data = await response.json();
       console.log(`${LOG_PREFIX} fetchBackupSummary - Success:`, data);
@@ -259,9 +253,7 @@ export function useSystemHealth() {
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] fetchHealth - Fetching system health`);
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/health`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
+      const response = await adminFetch('/api/admin/health');
       if (!response.ok) throw new Error('Failed to fetch health');
       const result = await response.json();
       console.log(`${LOG_PREFIX} fetchHealth - Success:`, result);
@@ -296,9 +288,7 @@ export function useAdminDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/dashboard`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
+      const response = await adminFetch('/api/admin/dashboard');
       if (!response.ok) throw new Error(`Failed to fetch dashboard: ${response.status}`);
       const result = await response.json();
       console.log(`${LOG_PREFIX} fetchDashboard - Success:`, result);
@@ -330,9 +320,7 @@ export function useProfileStorage(personId: string) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/storage/profile/${personId}`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
+      const response = await adminFetch(`/api/admin/storage/profile/${personId}`);
       if (!response.ok) throw new Error(`Failed to fetch profile storage: ${response.status}`);
       const data = await response.json();
       console.log(`${LOG_PREFIX} fetchProfileStorage - Success:`, data);
@@ -355,9 +343,7 @@ export function useProfileStorage(personId: string) {
 
 export const fetchStorageSummary = async (): Promise<StorageSummary | null> => {
   try {
-    const response = await fetch(`${API_BASE}/api/admin/storage/summary`, {
-      headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-    });
+    const response = await adminFetch('/api/admin/storage/summary');
     if (!response.ok) throw new Error(`Failed to fetch storage summary: ${response.status}`);
     return await response.json();
   } catch (error) {
@@ -368,9 +354,7 @@ export const fetchStorageSummary = async (): Promise<StorageSummary | null> => {
 
 export const fetchProfileStorageUsage = async (personId: string): Promise<ProfileStorage | null> => {
   try {
-    const response = await fetch(`${API_BASE}/api/admin/storage/profile/${personId}`, {
-      headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-    });
+    const response = await adminFetch(`/api/admin/storage/profile/${personId}`);
     if (!response.ok) throw new Error(`Failed to fetch profile storage: ${response.status}`);
     return await response.json();
   } catch (error) {
@@ -381,9 +365,7 @@ export const fetchProfileStorageUsage = async (personId: string): Promise<Profil
 
 export const fetchBackupSummary = async (): Promise<BackupSummary | null> => {
   try {
-    const response = await fetch(`${API_BASE}/api/admin/backups/summary`, {
-      headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-    });
+    const response = await adminFetch('/api/admin/backups/summary');
     if (!response.ok) throw new Error(`Failed to fetch backup summary: ${response.status}`);
     return await response.json();
   } catch (error) {
@@ -394,9 +376,7 @@ export const fetchBackupSummary = async (): Promise<BackupSummary | null> => {
 
 export const fetchBackupHistory = async (limit = 50) => {
   try {
-    const response = await fetch(`${API_BASE}/api/admin/backups/history?limit=${limit}`, {
-      headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-    });
+    const response = await adminFetch(`/api/admin/backups/history?limit=${limit}`);
     if (!response.ok) throw new Error(`Failed to fetch backup history: ${response.status}`);
     return await response.json();
   } catch (error) {
@@ -407,11 +387,10 @@ export const fetchBackupHistory = async (limit = 50) => {
 
 export const triggerManualBackup = async (force = false) => {
   try {
-    const response = await fetch(`${API_BASE}/api/backup/trigger`, {
+    const response = await adminFetch('/api/backup/trigger', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Admin-API-Key': ADMIN_API_KEY
       },
       body: JSON.stringify({ force })
     });
@@ -428,11 +407,10 @@ export const triggerManualBackup = async (force = false) => {
 
 export const cleanupOldBackups = async () => {
   try {
-    const response = await fetch(`${API_BASE}/api/admin/backups/cleanup`, {
+    const response = await adminFetch('/api/admin/backups/cleanup', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Admin-API-Key': ADMIN_API_KEY
       }
     });
     if (!response.ok) {

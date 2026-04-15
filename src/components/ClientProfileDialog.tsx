@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Tables } from "@/integrations/supabase/types";
 import { Shield, CreditCard, Eye, EyeOff } from "lucide-react";
-import { getApiEndpoint } from "@/lib/config";
+import { adminFetch, isAdminApiKeyConfigured } from "@/lib/api";
 
 type ClientProfile = Tables<"client_profiles"> & {
   match_status?: 'not_matched' | 'matched' | null;
@@ -45,30 +45,25 @@ const ClientProfileDialog = ({ open, onClose, profile }: ClientProfileDialogProp
         return;
       }
 
-      const previousStatus = profile.payment_status;
       console.log('[ClientProfileDialog] Updating payment status via API:', {
         profileId: profile.id,
         userId: profile.user_id,
-        previousPaymentStatus: previousStatus,
+        previousPaymentStatus: profile.payment_status,
         newPaymentStatus: paymentStatus,
         isProfileActive: isProfileActive,
       });
 
-      const apiKey = import.meta.env.VITE_ADMIN_API_KEY;
-      const apiUrl = getApiEndpoint();
-      
-      if (!apiKey) {
+      if (!isAdminApiKeyConfigured()) {
         console.error('[ClientProfileDialog] Admin API key not configured');
         toast.error("Admin API key not configured. Please contact administrator.");
         setLoading(false);
         return;
       }
 
-      const response = await fetch(`${apiUrl}/api/admin/update-client-payment`, {
+      const response = await adminFetch('/api/admin/update-client-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-api-key': apiKey,
         },
         body: JSON.stringify({
           profile_id: profile.id,
@@ -87,7 +82,7 @@ const ClientProfileDialog = ({ open, onClose, profile }: ClientProfileDialogProp
       console.log('[ClientProfileDialog] Update successful via API:', {
         profileId: profile.id,
         userId: profile.user_id,
-        previousPaymentStatus: previousStatus,
+        previousPaymentStatus: profile.payment_status,
         newPaymentStatus: result.data.payment_status,
         serverUpdatedAt: result.data.updated_at,
       });
