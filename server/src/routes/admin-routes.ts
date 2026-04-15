@@ -13,20 +13,32 @@ const ADMIN_EMAIL = 'vijayalakshmijayakumar45@gmail.com';
 const LOG_PREFIX = '[AdminRoutes]';
 
 function requireAdmin(req: Request, res: Response, next: (err?: Error) => void): void {
-  const apiKey = req.headers['x-admin-api-key'];
-  if (apiKey !== process.env.ADMIN_API_KEY) {
-    console.error(`${LOG_PREFIX} Unauthorized access attempt from ${req.ip}`);
-    res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED', timestamp: new Date().toISOString() });
+  const apiKey = (req.headers['x-admin-api-key'] || req.headers['X-Admin-API-Key']) as string | undefined;
+  
+  if (!apiKey) {
+    console.error(`${LOG_PREFIX} No API key provided from ${req.ip}`);
+    res.status(401).json({ error: 'Unauthorized', code: 'NO_API_KEY', timestamp: new Date().toISOString() });
     return;
   }
+  
+  if (apiKey !== process.env.ADMIN_API_KEY) {
+    console.error(`${LOG_PREFIX} Invalid API key from ${req.ip}`);
+    res.status(401).json({ error: 'Unauthorized', code: 'INVALID_API_KEY', timestamp: new Date().toISOString() });
+    return;
+  }
+  
   next();
 }
 
 function getSupabase() {
-  return createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.VITE_SUPABASE_ANON_KEY!
-  );
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(`Supabase not configured: URL=${!!supabaseUrl}, Key=${!!supabaseAnonKey}`);
+  }
+  
+  return createClient(supabaseUrl, supabaseAnonKey);
 }
 
 function formatBytes(bytes: number): number {

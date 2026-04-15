@@ -5,6 +5,18 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
+// ============================================
+// Startup Validation
+// ============================================
+const requiredEnvVars = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'];
+const missingEnvVars = requiredEnvVars.filter(v => !process.env[v]);
+
+if (missingEnvVars.length > 0) {
+  console.warn(`[Startup] Missing env vars: ${missingEnvVars.join(', ')}`);
+} else {
+  console.log('[Startup] All required Supabase env vars present');
+}
+
 // Import routes
 import backupRoutes from './routes/backup-routes.js';
 import adminRoutes from './routes/admin-routes.js';
@@ -173,19 +185,24 @@ app.use((_req: Request, res: Response) => {
 // Start Server
 // ============================================
 const startServer = () => {
-  app.listen(PORT, () => {
-    console.log('='.repeat(50));
-    console.log(`Server started successfully`);
-    console.log(`Environment: ${NODE_ENV}`);
-    console.log(`Port: ${PORT}`);
-    console.log(`Health check: http://localhost:${PORT}/health`);
-    console.log('='.repeat(50));
-    
-    // Log configured origins in development
-    if (NODE_ENV === 'development') {
-      console.log('Allowed CORS origins:', getAllowedOrigins());
-    }
-  });
+  try {
+    app.listen(PORT, () => {
+      console.log('='.repeat(50));
+      console.log(`Server started successfully`);
+      console.log(`Environment: ${NODE_ENV}`);
+      console.log(`Port: ${PORT}`);
+      console.log(`Health check: http://localhost:${PORT}/health`);
+      console.log('='.repeat(50));
+      
+      // Log configured origins in development
+      if (NODE_ENV === 'development') {
+        console.log('Allowed CORS origins:', getAllowedOrigins());
+      }
+    });
+  } catch (err) {
+    console.error('[Startup] Failed to start server:', err);
+    process.exit(1);
+  }
 };
 
 startServer();
