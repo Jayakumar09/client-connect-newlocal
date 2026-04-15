@@ -9,13 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Upload, X, Save, Heart, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, Upload, X, Save, Heart, Plus, CheckCircle2, Circle } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { format } from "date-fns";
 import imageCompression from 'browser-image-compression';
 import logoImage from "@/assets/sri-lakshmi-logo.png";
 import { z } from "zod";
 import { Tables } from "@/integrations/supabase/types";
+import { calculateProfileCompletion, getProfileCompletionBreakdown } from "@/lib/profileCompletion";
 
 type ClientProfile = Tables<"client_profiles"> & {
   match_status?: 'not_matched' | 'matched' | null;
@@ -75,16 +76,12 @@ const ClientProfile = () => {
 
   const profileCompletion = useMemo(() => {
     if (!profile) return 0;
-    const fields = [
-      profile.full_name, profile.email, profile.phone_number, profile.date_of_birth,
-      profile.gender, profile.religion, profile.caste, profile.mother_tongue,
-      profile.height_cm, profile.weight_kg, profile.complexion, profile.marital_status,
-      profile.birth_time, profile.birth_place, profile.star, profile.rasi,
-      profile.education, profile.occupation, profile.annual_income, profile.city,
-      profile.state, profile.father_name, profile.about_me, profile.profile_photo,
-    ];
-    const filled = fields.filter(f => f !== null && f !== undefined && f !== '').length;
-    return Math.round((filled / fields.length) * 100);
+    return calculateProfileCompletion(profile);
+  }, [profile]);
+
+  const completionBreakdown = useMemo(() => {
+    if (!profile) return null;
+    return getProfileCompletionBreakdown(profile);
   }, [profile]);
 
   const [formData, setFormData] = useState<Partial<ProfileFormData>>({
@@ -505,9 +502,26 @@ const ClientProfile = () => {
                     <span className="text-sm font-semibold text-purple-600">{profileCompletion}%</span>
                   </div>
                   <Progress value={profileCompletion} className="h-2" />
-                  {profileCompletion < 100 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Complete your profile to get better matches!
+                  {profileCompletion < 100 && completionBreakdown && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                      <p className="font-medium mb-1">Complete these sections:</p>
+                      <div className="space-y-1">
+                        {completionBreakdown.sections.filter(s => !s.complete).map(section => (
+                          <div key={section.name} className="flex items-center gap-1">
+                            <Circle className="w-3 h-3 text-gray-400" />
+                            <span className="text-gray-600">{section.name}</span>
+                            {section.missingFields.length > 0 && (
+                              <span className="text-gray-400">({section.missingFields.slice(0, 2).join(', ')}{section.missingFields.length > 2 ? '...' : ''})</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {profileCompletion === 100 && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      Profile complete!
                     </p>
                   )}
                 </div>
