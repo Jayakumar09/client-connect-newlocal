@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Tables } from '@/integrations/supabase/types';
-import { getApiEndpoint } from '@/lib/config';
+import { getApiEndpoint, getAppConfig } from '@/lib/config';
 
 type BackupStatus = Tables<'backup_logs'>['status'];
 type BackupType = Tables<'backup_logs'>['type'];
@@ -161,6 +161,7 @@ function determineStatus(lastBackup: BackupLog | null, isRunning: boolean): 'idl
 
 export function BackupProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<BackupState>(initialState);
+  const config = getAppConfig();
 
   const fetchBackupSummary = useCallback(async (): Promise<BackupSummary | null> => {
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] fetchBackupSummary - Fetching backup summary`);
@@ -404,14 +405,18 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     console.log(`${LOG_PREFIX} Initializing backup context`);
-    refreshAdminMetrics();
-
-    const interval = setInterval(refreshBackupStatus, 60000);
-    return () => {
-      console.log(`${LOG_PREFIX} Cleaning up backup context`);
-      clearInterval(interval);
-    };
-  }, [refreshAdminMetrics, refreshBackupStatus]);
+    // Only fetch backup status for admin users in production
+    // Skip for client-auth page and preview deployments to avoid 404s
+    if (config.isAdmin && config.isProduction) {
+      refreshAdminMetrics();
+      const interval = setInterval(refreshBackupStatus, 60000);
+      return () => {
+        console.log(`${LOG_PREFIX} Cleaning up backup context`);
+        clearInterval(interval);
+      };
+    }
+    console.log(`${LOG_PREFIX} Skipping backup status fetch for client/preview mode`);
+  }, [config.isAdmin, config.isProduction, refreshAdminMetrics, refreshBackupStatus]);
 
   return (
     <BackupContext.Provider

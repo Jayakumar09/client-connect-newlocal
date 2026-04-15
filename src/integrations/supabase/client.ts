@@ -22,6 +22,16 @@ function createSupabaseClient(): SupabaseClient<Database> | null {
     return null;
   }
 
+  // Validate URL format and log for debugging
+  const urlValid = supabaseUrl.startsWith('https://');
+  console.log('[Supabase] Initializing with URL:', supabaseUrl);
+  console.log('[Supabase] URL valid (https):', urlValid);
+  console.log('[Supabase] Key prefix:', supabaseKey.substring(0, 15) + '...');
+
+  if (!urlValid) {
+    console.error('[Supabase] ERROR: URL must start with https:// - this will cause ERR_NAME_NOT_RESOLVED');
+  }
+
   return createClient<Database>(supabaseUrl, supabaseKey, {
     auth: {
       storage: localStorage,

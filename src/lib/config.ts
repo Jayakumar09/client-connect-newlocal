@@ -174,6 +174,17 @@ export function getApiEndpoint(path: string): string {
   return `${baseUrl}${apiPath}`;
 }
 
+// Debug helper to verify Supabase configuration
+export function getSupabaseDebugInfo(): { url: string; keyPrefix: string; valid: boolean } {
+  const url = import.meta.env.VITE_SUPABASE_URL || '';
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  return {
+    url,
+    keyPrefix: key.substring(0, 20) + '...',
+    valid: !!(url && key && url.startsWith('https://'))
+  };
+}
+
 export function isAdminApp(): boolean {
   return getAppConfig().isAdmin;
 }
