@@ -142,12 +142,9 @@ function AdminRoutesWrapper() {
       <Routes>
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={
-          <div>
-            <div className="p-2 bg-blue-100 text-blue-800">[Admin] Rendering /admin/dashboard</div>
-            <AdminDashboard />
-          </div>
+          <AdminDashboard />
         } />
-        <Route path="/admin/payments" element={<div>Admin payments route works</div>} />
+        <Route path="/admin/payments" element={<div className="p-8">Payments</div>} />
         <Route path="/" element={<Navigate to="/admin-login" replace />} />
       </Routes>
     </Suspense>
