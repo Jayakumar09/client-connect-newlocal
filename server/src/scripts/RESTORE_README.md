@@ -39,8 +39,8 @@ External image URLs found in profiles (reference only):
 
 ```bash
 # Supabase Configuration
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
 
 # Google Drive (for downloading backup from Drive)
 GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY_PATH=/path/to/service-account.json
@@ -51,7 +51,7 @@ SUPABASE_ACCESS_TOKEN=your-access-token
 ```
 
 ### Required Permissions
-- Supabase: Service role key with full database and storage access
+- Supabase: Anon key with database and storage access
 - Google Drive: Drive API access to download backup archive
 
 ---
@@ -218,7 +218,7 @@ Ensure the buckets exist in Supabase Storage before restore:
 ```
 
 ### "Permission denied" Error
-Verify your SUPABASE_SERVICE_ROLE_KEY has:
+Verify your VITE_SUPABASE_ANON_KEY has:
 - Storage Admin permissions
 - Database insert/update permissions
 

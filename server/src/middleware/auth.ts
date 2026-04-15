@@ -6,8 +6,8 @@ export interface AuthRequest extends Request {
   userRole?: string;
 }
 
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+const supabaseServiceKey = process.env.VITE_SUPABASE_ANON_KEY!;
 
 let supabase: SupabaseClient;
 

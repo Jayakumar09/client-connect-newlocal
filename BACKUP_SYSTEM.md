@@ -151,8 +151,8 @@ VITE_ADMIN_API_KEY=your-secure-admin-api-key
 
 ```env
 # Supabase
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_ACCESS_TOKEN=your-access-token
 
 # Google Drive
@@ -319,7 +319,7 @@ Monitor backup health via:
 
 ### Database export fails
 
-- Verify SUPABASE_SERVICE_ROLE_KEY is correct
+- Verify VITE_SUPABASE_ANON_KEY is correct
 - Check Supabase project is accessible
 - Review table permissions
 

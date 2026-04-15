@@ -150,8 +150,8 @@ VITE_ADMIN_API_KEY=your-secure-admin-api-key
 
 ```env
 # Supabase
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
 
 # Google Drive (OAuth or Service Account)
 GOOGLE_DRIVE_CLIENT_ID=your-client-id

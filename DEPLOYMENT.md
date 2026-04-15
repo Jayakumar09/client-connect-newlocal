@@ -43,8 +43,8 @@ Add these in Render dashboard → Environment:
 |-----|-------|
 | `NODE_ENV` | `production` |
 | `PORT` | `3001` |
-| `SUPABASE_URL` | `https://sujliykbkpxdxitgbzwi.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | (from Supabase dashboard) |
+| `VITE_SUPABASE_URL` | `https://sujliykbkpxdxitgbzwi.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | (from Supabase dashboard - same as frontend) |
 | `ADMIN_DOMAIN` | `admin.vijayalakshmiboyarmatrimony.com` |
 | `CLIENT_DOMAIN` | `app.vijayalakshmiboyarmatrimony.com` |
 | `ADMIN_API_KEY` | (generate secure key) |
@@ -146,8 +146,8 @@ VITE_ADMIN_API_KEY=your-admin-key
 ```
 NODE_ENV=production
 PORT=3001
-SUPABASE_URL=https://sujliykbkpxdxitgbzwi.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-key
+VITE_SUPABASE_URL=https://sujliykbkpxdxitgbzwi.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
 ADMIN_API_KEY=your-admin-key
 CLIENT_DOMAIN=app.vijayalakshmiboyarmatrimony.com
 ADMIN_DOMAIN=admin.vijayalakshmiboyarmatrimony.com

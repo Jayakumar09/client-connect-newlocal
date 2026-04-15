@@ -111,8 +111,8 @@ EXAMPLES:
   npm run restore:local -- --file ./backup-2026-04-12.zip --bucket person-images
 
 ENVIRONMENT VARIABLES:
-  SUPABASE_URL               Supabase project URL
-  SUPABASE_SERVICE_ROLE_KEY  Supabase service role key
+  VITE_SUPABASE_URL           Supabase project URL
+  VITE_SUPABASE_ANON_KEY      Supabase anon key
   GOOGLE_DRIVE_FOLDER_ID      Google Drive folder ID for backups
   GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY_PATH  Path to service account JSON
 
@@ -192,8 +192,8 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment');
+  if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY) {
+    console.error('Error: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set in environment');
     console.error('Please configure your .env file or set environment variables');
     process.exit(1);
   }

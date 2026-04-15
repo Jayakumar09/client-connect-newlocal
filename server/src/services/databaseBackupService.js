@@ -26,8 +26,8 @@ const TABLES = [
 
 class DatabaseBackupService {
   constructor(config = {}) {
-    this.supabaseUrl = config.SUPABASE_URL || process.env.SUPABASE_URL;
-    this.supabaseKey = config.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    this.supabaseUrl = config.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    this.supabaseKey = config.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
     this.databaseUrl = config.DATABASE_URL || process.env.DATABASE_URL;
     this.pgDumpPath = config.PG_DUMP_PATH || process.env.PG_DUMP_PATH;
     this.tempDir = config.TEMP_BACKUP_DIR || process.env.TEMP_BACKUP_DIR || './temp/backup';

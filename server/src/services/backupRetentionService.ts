@@ -71,12 +71,12 @@ export class BackupRetentionService {
 
   private getSupabase(): SupabaseClient {
     if (!this.supabase) {
-      if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY) {
         throw new Error('Supabase environment variables not configured');
       }
       this.supabase = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
+        process.env.VITE_SUPABASE_URL,
+        process.env.VITE_SUPABASE_ANON_KEY
       );
     }
     return this.supabase;

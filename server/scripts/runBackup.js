@@ -74,8 +74,8 @@ async function runBackup(options) {
   console.log('='.repeat(60) + '\n');
 
   const config = {
-    SUPABASE_URL: process.env.SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     TEMP_BACKUP_DIR: process.env.TEMP_BACKUP_DIR || './temp/backup',
     BACKUP_OUTPUT_DIR: options.outputDir || process.env.BACKUP_OUTPUT_DIR || './backups',
@@ -111,7 +111,7 @@ async function runBackup(options) {
   }
 
   console.log('[CLI] Configuration:');
-  console.log(`  Supabase: ${config.SUPABASE_URL ? 'Yes' : 'No'}`);
+  console.log(`  Supabase: ${config.VITE_SUPABASE_URL ? 'Yes' : 'No'}`);
   console.log(`  Database URL: ${config.DATABASE_URL ? 'Yes' : 'No'}`);
   console.log(`  Temp Dir: ${config.TEMP_BACKUP_DIR}`);
   console.log(`  Output Dir: ${config.BACKUP_OUTPUT_DIR}\n`);
