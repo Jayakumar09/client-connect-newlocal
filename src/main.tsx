@@ -6,6 +6,8 @@ import { getAppConfig } from "./lib/config";
 import { getMissingEnvVars, isConfigured } from "./integrations/supabase/client";
 import { EnvError } from "./components/EnvError";
 
+console.log('[Boot] === MAIN.TSX START ===');
+
 // Check environment configuration
 function checkEnvConfig(): string[] {
   const missing = getMissingEnvVars();
@@ -61,15 +63,22 @@ function setupNetworkStatus() {
 
 // Initialize app
 const container = document.getElementById('root');
+console.log('[Boot] Container found:', !!container);
+
 if (container) {
   const root = createRoot(container);
+  console.log('[Boot] Root created');
+  
   const missingVars = checkEnvConfig();
+  console.log('[Boot] Config check done, missing vars:', missingVars);
   
   if (!isConfigured()) {
+    console.log('[Boot] App NOT configured, showing EnvError');
     // Show configuration error instead of crashing
     root.render(<EnvError missingVars={missingVars} />);
     console.error('[App] App not configured - missing environment variables');
   } else {
+    console.log('[Boot] App configured, rendering App');
     root.render(
       <StrictMode>
         <App />
