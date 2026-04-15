@@ -56,7 +56,7 @@ router.get('/conversations/archived', async (req: AuthRequest, res: Response): P
 router.get('/messages/:partnerId', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
-    const { partnerId } = req.params;
+    const partnerId = String(req.params.partnerId);
     const { limit, before } = req.query;
 
     if (!userId) {
@@ -80,7 +80,7 @@ router.get('/messages/:partnerId', async (req: AuthRequest, res: Response): Prom
 router.post('/messages/:partnerId', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
-    const { partnerId } = req.params;
+    const partnerId = String(req.params.partnerId);
     const { message } = req.body;
 
     if (!userId) {
@@ -107,7 +107,7 @@ router.post(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.userId;
-      const { partnerId } = req.params;
+      const partnerId = String(req.params.partnerId);
       const file = req.file;
 
       if (!userId) {
@@ -146,7 +146,7 @@ router.post(
 router.patch('/messages/:messageId/read', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
-    const { messageId } = req.params;
+    const messageId = String(req.params.messageId);
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -164,7 +164,7 @@ router.patch('/messages/:messageId/read', async (req: AuthRequest, res: Response
 router.delete('/messages/:messageId', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
-    const { messageId } = req.params;
+    const messageId = String(req.params.messageId);
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -182,7 +182,7 @@ router.delete('/messages/:messageId', async (req: AuthRequest, res: Response): P
 router.post('/conversations/:partnerId/archive', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
-    const { partnerId } = req.params;
+    const partnerId = String(req.params.partnerId);
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -200,7 +200,7 @@ router.post('/conversations/:partnerId/archive', async (req: AuthRequest, res: R
 router.delete('/conversations/:partnerId/archive', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
-    const { partnerId } = req.params;
+    const partnerId = String(req.params.partnerId);
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
