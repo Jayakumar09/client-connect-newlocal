@@ -3,6 +3,7 @@
 // ============================================
 
 export type DeploymentMode = 'development' | 'production';
+export type AppArea = 'admin' | 'client' | 'unknown';
 
 export interface AppConfig {
   mode: DeploymentMode;
@@ -10,6 +11,9 @@ export interface AppConfig {
   isDevelopment: boolean;
   isAdmin: boolean;
   isClient: boolean;
+  area: AppArea;
+  hostname: string;
+  subdomain: string | null;
   apiUrl: string;
   supabaseUrl: string;
   supabaseAnonKey: string;
@@ -18,68 +22,118 @@ export interface AppConfig {
   enablePWA: boolean;
 }
 
+// Get hostname from window or return empty for SSR
+function getHostname(): string {
+  if (typeof window === 'undefined') return '';
+  return window.location.hostname;
+}
+
+// Get subdomain from hostname (e.g., "admin" from "admin.vijayalakshmiboyarmatrimony.com")
+export function getSubdomain(hostname: string): string | null {
+  if (!hostname) return null;
+  
+  // localhost has no subdomain
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return null;
+  }
+  
+  const adminDomain = import.meta.env.VITE_ADMIN_DOMAIN || 'admin.vijayalakshmiboyarmatrimony.com';
+  const clientDomain = import.meta.env.VITE_CLIENT_DOMAIN || 'app.vijayalakshmiboyarmatrimony.com';
+  
+  // Check if hostname ends with admin domain (with subdomain prefix)
+  if (hostname.endsWith(`.${adminDomain}`)) {
+    return 'admin';
+  }
+  
+  // Check if hostname ends with client domain (with subdomain prefix)
+  if (hostname.endsWith(`.${clientDomain}`)) {
+    return 'app';
+  }
+  
+  // Exact match for admin domain (no subdomain)
+  if (hostname === adminDomain) {
+    return 'admin';
+  }
+  
+  // Exact match for client domain (no subdomain)
+  if (hostname === clientDomain) {
+    return 'app';
+  }
+  
+  return null;
+}
+
+// Check if hostname is admin subdomain
+export function isAdminHost(hostname: string): boolean {
+  const subdomain = getSubdomain(hostname);
+  return subdomain === 'admin';
+}
+
+// Check if hostname is client/app subdomain
+export function isAppHost(hostname: string): boolean {
+  const subdomain = getSubdomain(hostname);
+  return subdomain === 'app';
+}
+
+// Check if hostname is Cloudflare Pages preview
+export function isPagesDevHost(hostname: string): boolean {
+  return hostname.endsWith('.pages.dev') || hostname.endsWith('.cloudflareapps.com');
+}
+
 // Get deployment mode from environment
 function getDeploymentMode(): DeploymentMode {
   const mode = import.meta.env.VITE_DEPLOYMENT_MODE;
   if (mode === 'production') return 'production';
   
   // Detect if running on Cloudflare Pages preview
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    // Cloudflare Pages preview domains and production domains
-    if (hostname.endsWith('.pages.dev') || hostname.endsWith('.cloudflareapps.com')) {
-      return 'production';
-    }
+  const hostname = getHostname();
+  if (hostname && isPagesDevHost(hostname)) {
+    return 'production';
   }
   
   return 'development';
 }
 
 // Detect subdomain from hostname
-function detectSubdomain(): 'admin' | 'client' {
-  if (typeof window === 'undefined') {
-    console.log('[Config] SSR detected, defaulting to client mode');
-    return 'client';
-  }
+function detectArea(): AppArea {
+  const hostname = getHostname();
+  console.log('[Config] Detecting area for hostname:', hostname);
   
-  const hostname = window.location.hostname;
-  console.log('[Config] Detecting subdomain for hostname:', hostname);
-  
-  // Localhost development
+  // Localhost development - use path-based fallback
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    console.log('[Config] Localhost detected');
-    // Check URL path for routing in dev
+    console.log('[Config] Localhost detected, using path-based fallback');
     const path = window.location.pathname;
-    if (path.startsWith('/admin') || path.includes('admin')) {
-      console.log('[Config] Path indicates admin mode');
+    if (path.startsWith('/admin') || path.includes('/admin/')) {
       return 'admin';
     }
-    console.log('[Config] Path indicates client mode (default for localhost)');
     return 'client';
   }
   
-  // Cloudflare Pages preview domains - treat as client
-  if (hostname.endsWith('.pages.dev') || hostname.endsWith('.cloudflareapps.com')) {
-    console.log('[Config] Cloudflare Pages preview detected');
+  // Cloudflare Pages preview domains - use path-based fallback
+  if (isPagesDevHost(hostname)) {
+    console.log('[Config] Pages.dev preview detected, using path-based fallback');
+    const path = window.location.pathname;
+    if (path.startsWith('/admin') || path.includes('/admin/')) {
+      return 'admin';
+    }
     return 'client';
   }
   
-  // Production subdomains
-  const adminDomain = import.meta.env.VITE_ADMIN_DOMAIN || 'admin.vijayalakshmiboyarmatrimony.com';
-  const clientDomain = import.meta.env.VITE_CLIENT_DOMAIN || 'app.vijayalakshmiboyarmatrimony.com';
+  // Production subdomain detection
+  const subdomain = getSubdomain(hostname);
   
-  if (hostname === adminDomain || hostname.endsWith(`.${adminDomain}`)) {
-    console.log('[Config] Admin domain detected');
+  if (subdomain === 'admin') {
+    console.log('[Config] Admin subdomain detected');
     return 'admin';
   }
   
-  if (hostname === clientDomain || hostname.endsWith(`.${clientDomain}`)) {
-    console.log('[Config] Client domain detected');
+  if (subdomain === 'app') {
+    console.log('[Config] Client/App subdomain detected');
     return 'client';
   }
   
-  // Unknown domains - default to client mode
-  console.log('[Config] Unknown domain, defaulting to client mode');
+  // Unknown domain - default to client for safety
+  console.log('[Config] Unknown domain, defaulting to client');
   return 'client';
 }
 
@@ -117,15 +171,16 @@ function getApiUrl(mode: DeploymentMode): string {
 // Create app configuration
 function createConfig(): AppConfig {
   const mode = getDeploymentMode();
-  const subdomain = detectSubdomain();
-  const isAdmin = subdomain === 'admin';
-  const isClient = subdomain === 'client';
+  const hostname = getHostname();
+  const area = detectArea();
+  const isAdmin = area === 'admin';
+  const isClient = area === 'client';
+  const subdomain = getSubdomain(hostname);
   
-  console.log('[Config] Creating app config:', { mode, subdomain, isAdmin, isClient });
+  console.log('[Config] Creating app config:', { mode, area, hostname, subdomain, isAdmin, isClient });
   
   // Disable PWA on preview domains (Cloudflare Pages preview)
-  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-  const isPreview = hostname.endsWith('.pages.dev') || hostname.endsWith('.cloudflareapps.com');
+  const isPreview = isPagesDevHost(hostname);
   
   return {
     mode,
@@ -133,6 +188,9 @@ function createConfig(): AppConfig {
     isDevelopment: mode === 'development',
     isAdmin,
     isClient,
+    area,
+    hostname,
+    subdomain,
     apiUrl: getApiUrl(mode),
     supabaseUrl: import.meta.env.VITE_SUPABASE_URL || '',
     supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
@@ -191,4 +249,38 @@ export function isAdminApp(): boolean {
 
 export function isClientApp(): boolean {
   return getAppConfig().isClient;
+}
+
+// Get full URL for a path based on current area
+export function getAreaUrl(path: string): string {
+  const config = getAppConfig();
+  const protocol = 'https://';
+  
+  if (config.isAdmin) {
+    return `${protocol}${config.adminDomain}${path}`;
+  }
+  
+  return `${protocol}${config.clientDomain}${path}`;
+}
+
+// Get login URL for current area
+export function getLoginUrl(): string {
+  const config = getAppConfig();
+  
+  if (config.isAdmin) {
+    return '/admin-login';
+  }
+  
+  return '/client-auth';
+}
+
+// Get logout redirect URL
+export function getLogoutRedirectUrl(): string {
+  const config = getAppConfig();
+  
+  if (config.isAdmin) {
+    return '/admin-login';
+  }
+  
+  return '/client-auth';
 }

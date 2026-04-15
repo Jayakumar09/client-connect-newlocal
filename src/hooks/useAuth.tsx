@@ -1,7 +1,8 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { getAppConfig, getLogoutRedirectUrl } from '@/lib/config';
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +22,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const isAdmin = user?.email === ADMIN_EMAIL;
 
@@ -51,6 +53,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    // Redirect to appropriate login page based on current area
+    const redirectUrl = getLogoutRedirectUrl();
+    console.log('[Auth] Signing out, redirecting to:', redirectUrl);
+    navigate(redirectUrl, { replace: true });
   };
 
   const refetch = async () => {
@@ -77,25 +83,34 @@ export const useAuth = () => {
 export const useRequireAuth = (requiredRole?: 'admin' | 'client') => {
   const { user, loading, isAdmin, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const config = getAppConfig();
 
   useEffect(() => {
     if (loading) return;
     
     if (!isAuthenticated) {
-      navigate('/auth');
+      // Redirect to appropriate login based on required role or current area
+      if (requiredRole === 'admin' || config.isAdmin) {
+        navigate('/admin-login', { state: { from: location }, replace: true });
+      } else {
+        navigate('/client-auth', { state: { from: location }, replace: true });
+      }
       return;
     }
 
     if (requiredRole === 'admin' && !isAdmin) {
-      navigate('/browse');
+      // Admin required but user is not admin - redirect to client area
+      navigate('/client-auth', { replace: true });
       return;
     }
 
     if (requiredRole === 'client' && isAdmin) {
-      navigate('/dashboard');
+      // Client required but user is admin - redirect to admin area
+      navigate('/admin/dashboard', { replace: true });
       return;
     }
-  }, [loading, isAuthenticated, isAdmin, requiredRole, navigate]);
+  }, [loading, isAuthenticated, isAdmin, requiredRole, navigate, location, config.isAdmin]);
 
   return { user, loading, isAdmin, isAuthenticated };
 };
