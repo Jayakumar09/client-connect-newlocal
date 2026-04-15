@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { adminFetch } from '@/lib/api';
+import { adminFetch, isAdminApiKeyConfigured, resetAdminAuthError } from '@/lib/api';
 
 const LOG_PREFIX = '[useStorageSummary]';
 
@@ -187,95 +187,171 @@ export function useStorageSummary() {
   const [storage, setStorage] = useState<StorageSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetched, setFetched] = useState(false);
 
   const fetchStorage = useCallback(async () => {
+    if (!isAdminApiKeyConfigured()) {
+      const msg = 'Admin API key not configured';
+      console.error(`${LOG_PREFIX} fetchStorage - ${msg}`);
+      setError(msg);
+      setLoading(false);
+      return;
+    }
+    
+    if (fetched && error) {
+      console.log(`${LOG_PREFIX} fetchStorage - Already failed once, skipping auto-refetch`);
+      return;
+    }
+    
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] fetchStorage - Fetching storage summary`);
     setLoading(true);
     setError(null);
     try {
       const response = await adminFetch('/api/admin/storage/summary');
-      if (!response.ok) throw new Error(`Failed to fetch storage summary: ${response.status}`);
+      if (!response.ok) {
+        const status = response.status;
+        if (status === 401) {
+          setError('Authentication failed - please refresh the page');
+          setFetched(true);
+          return;
+        }
+        throw new Error(`Failed to fetch storage summary: ${status}`);
+      }
       const data = await response.json();
       console.log(`${LOG_PREFIX} fetchStorage - Success:`, data);
       setStorage(data);
+      setFetched(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       console.error(`${LOG_PREFIX} fetchStorage - Error:`, message);
       setError(message);
+      setFetched(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetched, error]);
 
   useEffect(() => {
     fetchStorage();
   }, [fetchStorage]);
 
-  return { storage, loading, error, refetch: fetchStorage };
+  return { storage, loading, error, refetch: () => { setFetched(false); fetchStorage(); } };
 }
 
 export function useBackupSummary() {
   const [backup, setBackup] = useState<BackupSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetched, setFetched] = useState(false);
 
   const fetchBackup = useCallback(async () => {
+    if (!isAdminApiKeyConfigured()) {
+      const msg = 'Admin API key not configured';
+      console.error(`${LOG_PREFIX} fetchBackupSummary - ${msg}`);
+      setError(msg);
+      setLoading(false);
+      return;
+    }
+    
+    if (fetched && error) {
+      console.log(`${LOG_PREFIX} fetchBackupSummary - Already failed once, skipping auto-refetch`);
+      return;
+    }
+    
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] fetchBackupSummary - Fetching backup summary`);
     setLoading(true);
     setError(null);
     try {
       const response = await adminFetch('/api/admin/backups/summary');
-      if (!response.ok) throw new Error(`Failed to fetch backup summary: ${response.status}`);
+      if (!response.ok) {
+        const status = response.status;
+        if (status === 401) {
+          setError('Authentication failed - please refresh the page');
+          setFetched(true);
+          return;
+        }
+        throw new Error(`Failed to fetch backup summary: ${status}`);
+      }
       const data = await response.json();
       console.log(`${LOG_PREFIX} fetchBackupSummary - Success:`, data);
       setBackup(data);
+      setFetched(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       console.error(`${LOG_PREFIX} fetchBackupSummary - Error:`, message);
       setError(message);
+      setFetched(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetched, error]);
 
   useEffect(() => {
     fetchBackup();
   }, [fetchBackup]);
 
-  return { backup, loading, error, refetch: fetchBackup };
+  return { backup, loading, error, refetch: () => { setFetched(false); fetchBackup(); } };
 }
 
 export function useSystemHealth() {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fetched, setFetched] = useState(false);
 
   const fetchHealth = useCallback(async () => {
+    if (!isAdminApiKeyConfigured()) {
+      const msg = 'Admin API key not configured';
+      console.error(`${LOG_PREFIX} fetchHealth - ${msg}`);
+      setError(msg);
+      setLoading(false);
+      return;
+    }
+    
+    if (fetched && error) {
+      console.log(`${LOG_PREFIX} fetchHealth - Already failed once, skipping auto-refetch`);
+      return;
+    }
+    
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] fetchHealth - Fetching system health`);
     setLoading(true);
+    setError(null);
     try {
       const response = await adminFetch('/api/admin/health');
-      if (!response.ok) throw new Error('Failed to fetch health');
+      if (!response.ok) {
+        const status = response.status;
+        if (status === 401) {
+          setError('Authentication failed - please refresh the page');
+          setFetched(true);
+          return;
+        }
+        throw new Error(`Failed to fetch health: ${status}`);
+      }
       const result = await response.json();
       console.log(`${LOG_PREFIX} fetchHealth - Success:`, result);
       setHealth(result.data || result);
+      setFetched(true);
     } catch (err) {
-      console.error(`${LOG_PREFIX} fetchHealth - Error:`, err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`${LOG_PREFIX} fetchHealth - Error:`, message);
+      setError(message);
+      setFetched(true);
       setHealth({
         supabaseConnected: false,
         googleDriveConnected: false,
         lastHealthCheck: new Date().toISOString(),
-        errors: [err instanceof Error ? err.message : 'Unknown error']
+        errors: [message]
       });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetched, error]);
 
   useEffect(() => {
     fetchHealth();
   }, [fetchHealth]);
 
-  return { health, loading, refetch: fetchHealth };
+  return { health, loading, error, refetch: () => { setFetched(false); fetchHealth(); } };
 }
 
 export function useAdminDashboard() {

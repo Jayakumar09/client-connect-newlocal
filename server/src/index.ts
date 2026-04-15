@@ -17,6 +17,12 @@ if (missingEnvVars.length > 0) {
   console.log('[Startup] All required Supabase env vars present');
 }
 
+if (!process.env.ADMIN_API_KEY) {
+  console.error('[Startup] FATAL: ADMIN_API_KEY is not configured. Admin endpoints will fail with 401.');
+} else {
+  console.log('[Startup] ADMIN_API_KEY configured:', process.env.ADMIN_API_KEY.substring(0, 8) + '... (length: ' + process.env.ADMIN_API_KEY.length + ')');
+}
+
 // Import routes
 import backupRoutes from './routes/backup-routes.js';
 import adminRoutes from './routes/admin-routes.js';
