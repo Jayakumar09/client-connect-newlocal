@@ -1,3 +1,0 @@
-# Cloudflare Pages SPA Redirects - REMOVED
-# The catch-all /* rule was breaking /assets/* requests
-# SPA routing is now handled by Cloudflare Pages Functions in functions/spa-router.ts
