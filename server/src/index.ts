@@ -125,6 +125,24 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
+// API health check for frontend
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({ 
+    success: true,
+    data: { status: 'ok', timestamp: new Date().toISOString() },
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Backup status endpoint (simple)
+app.get('/api/backup/status', (_req: Request, res: Response) => {
+  res.json({ 
+    success: true,
+    data: { lastBackup: null, nextScheduled: new Date(Date.now() + 86400000).toISOString() },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // ============================================
 // API Routes
 // ============================================
