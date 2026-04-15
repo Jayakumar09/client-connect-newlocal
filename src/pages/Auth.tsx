@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Users, Lock, KeyRound, Eye, EyeOff, Wand2 } from "lucide-react";
 import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { isAdminApp } from "@/lib/config";
 
 const ADMIN_EMAIL = "vijayalakshmijayakumar45@gmail.com";
 
@@ -71,7 +72,12 @@ const Auth = () => {
       if (event === "PASSWORD_RECOVERY") {
         setIsRecoveryMode(true);
       } else if (event === "SIGNED_IN" && !isRecoveryMode) {
-        navigate("/dashboard");
+        // Redirect based on current host
+        if (isAdminApp()) {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       }
     });
 
@@ -83,7 +89,12 @@ const Auth = () => {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const type = hashParams.get('type');
         if (type !== 'recovery') {
-          navigate("/dashboard");
+          // Redirect based on current host
+          if (isAdminApp()) {
+            navigate("/admin/dashboard");
+          } else {
+            navigate("/dashboard");
+          }
         }
       }
     };

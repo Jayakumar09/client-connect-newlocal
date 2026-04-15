@@ -57,6 +57,7 @@ function log(prefix: string, message: string, data?: unknown) {
 }
 
 const AdminDashboard = () => {
+  console.log('[AdminDashboard] === START RENDER ===');
   const navigate = useNavigate();
   const { user, isAdmin, isAuthenticated, loading: authLoading, signOut } = useAuth();
   

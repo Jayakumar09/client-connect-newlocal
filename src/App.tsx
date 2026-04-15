@@ -30,8 +30,11 @@ const queryClient = new QueryClient();
 
 // Protected route wrapper for admin
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
+  console.log('[Admin] ProtectedAdminRoute rendering');
   const { user, loading, isAdmin } = useAuth();
   const location = useLocation();
+  
+  console.log('[Admin] ProtectedAdminRoute - user:', !!user, 'loading:', loading, 'isAdmin:', isAdmin);
   
   if (loading) {
     return (
@@ -45,14 +48,17 @@ function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   }
   
   if (!user) {
+    console.log('[Admin] No user, redirecting to /admin-login');
     return <Navigate to="/admin-login" state={{ from: location }} replace />;
   }
   
   if (!isAdmin) {
+    console.log('[Admin] User is not admin, redirecting to /client-auth');
     // Admin trying to access admin area without admin privileges
     return <Navigate to="/client-auth" replace />;
   }
   
+  console.log('[Admin] Rendering admin content');
   return <>{children}</>;
 }
 
@@ -86,20 +92,23 @@ function ProtectedClientRoute({ children }: { children: React.ReactNode }) {
 
 // Admin login page (public)
 function AdminLogin() {
+  console.log('[Admin] Rendering AdminLogin');
   const { user, isAdmin } = useAuth();
   
   // If already logged in as admin, redirect to dashboard
   if (user && isAdmin) {
+    console.log('[Admin] User is admin, redirecting to /admin/dashboard');
     return <Navigate to="/admin/dashboard" replace />;
   }
   
+  console.log('[Admin] Rendering Auth component for login');
   // Use existing Auth page for admin login
   return <Auth />;
 }
 
 // Admin routes
 function AdminRoutes() {
-  console.log('[AdminRoutes] Rendering admin routes');
+  console.log('[Admin] === AdminRoutes START ===');
   
   return (
     <ErrorBoundary>
