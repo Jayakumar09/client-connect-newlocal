@@ -218,8 +218,8 @@ function createConfig(): AppConfig {
     supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
     clientDomain: import.meta.env.VITE_CLIENT_DOMAIN || 'app.vijayalakshmiboyarmatrimony.com',
     adminDomain: import.meta.env.VITE_ADMIN_DOMAIN || 'admin.vijayalakshmiboyarmatrimony.com',
-    // PWA only enabled for client app in production (not preview domains)
-    enablePWA: isClient && mode === 'production' && !isPreview,
+    // PWA only enabled for client app in production (never on admin)
+    enablePWA: isClient && mode === 'production' && !isPreview && !isAdmin,
   };
 }
 

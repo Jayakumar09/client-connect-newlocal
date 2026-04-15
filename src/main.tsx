@@ -17,22 +17,41 @@ function checkEnvConfig(): string[] {
   return missing;
 }
 
-// Register Service Worker for PWA (client app only)
+// Register Service Worker for PWA (CLIENT APP ONLY - NEVER ON ADMIN)
 async function registerServiceWorker() {
-  // Only register in production and for client app
-  const config = getAppConfig();
+  console.log('[PWA] Checking service worker registration...');
   
-  if (!config.enablePWA || !('serviceWorker' in navigator)) {
-    console.log('[App] PWA service worker not enabled');
-    return;
-  }
-
   try {
+    const config = getAppConfig();
+    
+    // HARD BLOCK: Never register SW on admin domain
+    if (config.isAdmin) {
+      console.log('[PWA] Skipped - admin domain detected');
+      return;
+    }
+    
+    // Check if PWA is enabled and service worker is supported
+    if (!config.enablePWA) {
+      console.log('[PWA] Skipped - PWA not enabled');
+      return;
+    }
+    
+    if (typeof window === 'undefined') {
+      console.log('[PWA] Skipped - no window (SSR)');
+      return;
+    }
+    
+    if (!('serviceWorker' in navigator)) {
+      console.log('[PWA] Skipped - service worker not supported');
+      return;
+    }
+
+    console.log('[PWA] Registering service worker...');
     const registration = await navigator.serviceWorker.register('/sw.js', {
       scope: '/',
     });
 
-    console.log('[App] Service Worker registered:', registration.scope);
+    console.log('[PWA] Service Worker registered:', registration.scope);
 
     // Handle updates
     registration.addEventListener('updatefound', () => {
@@ -40,20 +59,32 @@ async function registerServiceWorker() {
       if (newWorker) {
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('[App] New content available, refresh to update');
+            console.log('[PWA] New content available, refresh to update');
           }
         });
       }
     });
   } catch (error) {
-    console.error('[App] Service Worker registration failed:', error);
+    console.error('[PWA] Registration failed:', error);
   }
 }
 
-// Handle online/offline status
+// Handle online/offline status (CLIENT ONLY)
 function setupNetworkStatus() {
+  const config = getAppConfig();
+  
+  // Skip on admin domain
+  if (config.isAdmin) {
+    console.log('[Network] Skipped - admin domain');
+    return;
+  }
+  
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
   const updateOnlineStatus = () => {
-    console.log('[App] Network:', navigator.onLine ? 'Online' : 'Offline');
+    console.log('[Network]', navigator.onLine ? 'Online' : 'Offline');
   };
 
   window.addEventListener('online', updateOnlineStatus);
@@ -74,7 +105,6 @@ if (container) {
   
   if (!isConfigured()) {
     console.log('[Boot] App NOT configured, showing EnvError');
-    // Show configuration error instead of crashing
     root.render(<EnvError missingVars={missingVars} />);
     console.error('[App] App not configured - missing environment variables');
   } else {
@@ -85,9 +115,12 @@ if (container) {
       </StrictMode>
     );
     
-    // Register service worker after render
-    registerServiceWorker();
-    setupNetworkStatus();
+    // Only run browser-specific code after render
+    // These are deferred and won't block initial render
+    setTimeout(() => {
+      registerServiceWorker();
+      setupNetworkStatus();
+    }, 0);
   }
 } else {
   console.error('[App] Root element not found');
