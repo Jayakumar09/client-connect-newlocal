@@ -1,21 +1,28 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
-const queryClient = new QueryClient();
+console.log('[Boot] App.tsx loaded - FIXED VERSION');
 
-console.log('[Boot] App.tsx loaded - MINIMAL VERSION');
-
-// Even more minimal - no imports that could fail
+// Fixed - no redirect, just render content directly
 function UltraMinimalAdminRoutes() {
   console.log('[Admin] UltraMinimalAdminRoutes rendering');
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route path="/admin/dashboard" element={<div style={{padding: 50, textAlign: 'center'}}><h1>Admin Dashboard Works!</h1></div>} />
+      {/* No redirect - just serve the content directly */}
+      <Route path="/admin/dashboard" element={
+        <div style={{padding: 50, textAlign: 'center', background: '#f0f0f0', minHeight: '100vh'}}>
+          <h1 style={{color: '#2a2'}}>Admin Dashboard Works!</h1>
+          <p>No redirect, no router magic.</p>
+          <p>Host: {window.location.hostname}</p>
+        </div>
+      } />
+      {/* Catch all - serve the same content */}
+      <Route path="*" element={
+        <div style={{padding: 50, textAlign: 'center', background: '#f0f0f0', minHeight: '100vh'}}>
+          <h1 style={{color: '#2a2'}}>Admin Dashboard Works!</h1>
+          <p>Catch-all route</p>
+        </div>
+      } />
     </Routes>
   );
 }
@@ -23,7 +30,7 @@ function UltraMinimalAdminRoutes() {
 function MinimalAppRoutes() {
   console.log('[Boot] MinimalAppRoutes rendering');
   
-  // Direct check without using getAppConfig to avoid any config issues
+  // Direct check without using getAppConfig
   let isAdmin = false;
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
@@ -36,7 +43,7 @@ function MinimalAppRoutes() {
     return <UltraMinimalAdminRoutes />;
   }
   
-  return <div style={{padding: 50}}><h1>Client mode - requires full setup</h1></div>;
+  return <div style={{padding: 50}}><h1>Client mode</h1></div>;
 }
 
 const App = () => {
@@ -44,15 +51,11 @@ const App = () => {
   
   try {
     return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <ErrorBoundary>
-            <BrowserRouter>
-              <MinimalAppRoutes />
-            </BrowserRouter>
-          </ErrorBoundary>
-        </TooltipProvider>
-      </QueryClientProvider>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <MinimalAppRoutes />
+        </BrowserRouter>
+      </ErrorBoundary>
     );
   } catch (e) {
     console.log('[Boot] App render caught error:', e);
