@@ -2,14 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { AuthProvider, useAuth } from "./hooks/useAuth";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./hooks/useAuth";
 import { BackupProvider } from "./contexts/BackupContext";
 import { getAppConfig } from "./lib/config";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import AdminDashboard from "./pages/AdminDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
-import Auth from "./pages/Auth";
 import ClientAuth from "./pages/ClientAuth";
 import ClientProfile from "./pages/ClientProfile";
 import Browse from "./pages/Browse";
@@ -17,8 +15,6 @@ import Install from "./pages/Install";
 import Plans from "./pages/Plans";
 import Payments from "./pages/Payments";
 import Subscriptions from "./pages/Subscriptions";
-import AdminPayments from "./pages/AdminPayments";
-import AdminMessages from "./pages/AdminMessages";
 import ClientMessages from "./pages/ClientMessages";
 import Messages from "./pages/Messages";
 import Help from "./pages/Help";
@@ -30,32 +26,37 @@ const queryClient = new QueryClient();
 
 console.log('[Boot] App.tsx loaded');
 
-// Temporary minimal admin routes for debugging
+// TEMPORARY: Simple div to test if admin host works at all
 function MinimalAdminRoutes() {
-  console.log('[Boot] MinimalAdminRoutes rendering');
+  console.log('[Admin] MinimalAdminRoutes rendering');
   return (
-    <Routes>
-      <Route path="/admin-login" element={<div>Admin Login Placeholder</div>} />
-      <Route path="/admin/dashboard" element={<div>Admin Dashboard Placeholder</div>} />
-      <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-    </Routes>
+    <div style={{ padding: 20, textAlign: 'center' }}>
+      <h1>Admin Area Works!</h1>
+      <p>Hostname: {typeof window !== 'undefined' ? window.location.hostname : 'N/A'}</p>
+    </div>
   );
 }
 
 function MinimalAppRoutes() {
-  const config = getAppConfig();
-  console.log('[Boot] AppRoutes - isAdmin:', config.isAdmin, 'hostname:', config.hostname);
+  console.log('[Boot] AppRoutes called');
+  let isAdmin = false;
+  try {
+    const config = getAppConfig();
+    isAdmin = config.isAdmin;
+    console.log('[Boot] isAdmin:', isAdmin);
+  } catch (e) {
+    console.log('[Boot] getAppConfig error:', e);
+  }
   
-  if (config.isAdmin) {
+  if (isAdmin) {
     console.log('[Boot] Returning MinimalAdminRoutes');
     return <MinimalAdminRoutes />;
   }
   
-  console.log('[Boot] Returning ClientRoutes (full)');
+  console.log('[Boot] Returning ClientRoutes');
   return <ClientRoutesFull />;
 }
 
-// Full client routes
 function ClientRoutesFull() {
   return (
     <ErrorBoundary>
@@ -81,24 +82,32 @@ function ClientRoutesFull() {
 }
 
 const App = () => {
-  console.log('[Boot] App component rendering');
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ErrorBoundary>
-          <AuthProvider>
-            <BackupProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <MinimalAppRoutes />
-              </BrowserRouter>
-            </BackupProvider>
-          </AuthProvider>
-        </ErrorBoundary>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
+  console.log('[Boot] App render START');
+  
+  try {
+    const result = (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <ErrorBoundary>
+            <AuthProvider>
+              <BackupProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <MinimalAppRoutes />
+                </BrowserRouter>
+              </BackupProvider>
+            </AuthProvider>
+          </ErrorBoundary>
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+    console.log('[Boot] App render END - returning JSX');
+    return result;
+  } catch (e) {
+    console.log('[Boot] App render ERROR:', e);
+    return <div>Error: {String(e)}</div>;
+  }
 };
 
 export default App;
