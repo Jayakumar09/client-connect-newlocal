@@ -13,6 +13,7 @@ import { format, isToday, isYesterday, isThisWeek, formatDistanceToNow } from "d
 import { cn } from "@/lib/utils";
 import { BRAND_LOGO } from "@/lib/branding";
 import EmojiPicker from "@/components/EmojiPicker";
+import { formatChatPartnerName } from "@/lib/chat-utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +30,7 @@ interface Conversation {
   unreadCount: number;
   phoneNumber?: string;
   email?: string;
+  profileId?: string;
 }
 
 interface Message {
@@ -51,6 +53,7 @@ interface ClientProfile {
   profile_photo: string | null;
   phone_number: string | null;
   email: string | null;
+  profile_id?: string | null;
   match_status?: 'not_matched' | 'matched' | null;
   matched_with_id?: string | null;
   match_remarks?: string | null;
@@ -123,7 +126,7 @@ const AdminMessages: React.FC = () => {
       if (partnerIds.length > 0) {
         const { data: profiles } = await supabase
           .from("client_profiles")
-          .select("user_id, full_name, profile_photo, phone_number, email")
+          .select("user_id, full_name, profile_photo, phone_number, email, profile_id")
           .in("user_id", partnerIds);
 
         const profileMap = new Map(
@@ -133,10 +136,19 @@ const AdminMessages: React.FC = () => {
         partnerMap.forEach((conv, partnerId) => {
           const profile = profileMap.get(partnerId);
           if (profile) {
-            conv.partnerName = profile.full_name || "Unknown User";
+            conv.profileId = profile.profile_id || undefined;
+            conv.partnerName = formatChatPartnerName({
+              name: profile.full_name || "Unknown User",
+              photo: profile.profile_photo,
+              type: 'client',
+              profileId: profile.profile_id || undefined
+            }, 'admin');
             conv.partnerPhoto = profile.profile_photo;
             conv.phoneNumber = profile.phone_number || undefined;
             conv.email = profile.email || undefined;
+          } else {
+            // Safe fallback - never expose internal IDs
+            conv.partnerName = 'Unknown User';
           }
         });
       }
@@ -665,11 +677,14 @@ const AdminMessages: React.FC = () => {
                     </Avatar>
                     <div className="flex-1">
                       <h3 className="font-semibold">{selectedPartner.partnerName}</h3>
-                      {selectedPartner.phoneNumber && (
-                        <p className="text-xs text-muted-foreground">
-                          {selectedPartner.phoneNumber}
-                        </p>
-                      )}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {selectedPartner.profileId && (
+                          <span className="font-mono">Profile ID: {selectedPartner.profileId}</span>
+                        )}
+                        {selectedPartner.phoneNumber && (
+                          <span>{selectedPartner.phoneNumber}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 

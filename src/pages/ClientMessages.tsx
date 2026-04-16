@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { BRAND_LOGO } from "@/lib/branding";
 import EmojiPicker from "@/components/EmojiPicker";
 import { toast } from "sonner";
+import { formatChatPartnerName } from "@/lib/chat-utils";
 
 interface Conversation {
   partnerId: string;
@@ -118,17 +119,12 @@ const ClientMessages = () => {
           : { data: null }
       ]);
 
-      const profileMap = new Map<string, { name: string; photo: string | null; type: string }>();
-      
-      console.log('[ClientMessages] adminProfiles lookup:', adminProfiles);
-      console.log('[ClientMessages] clientProfiles lookup:', clientProfiles);
+      const profileMap = new Map<string, { name: string; photo: string | null; type: 'admin' | 'client' }>();
       
       // First add admin profiles (from persons table)
       adminProfiles.data?.forEach(p => {
-        const shortId = p.user_id.slice(-4);
-        const adminName = p.name || `Admin #${shortId}`;
         profileMap.set(p.user_id, { 
-          name: `Admin - ${adminName}`, 
+          name: p.name || 'Admin', 
           photo: p.profile_image || null,
           type: 'admin'
         });
@@ -147,11 +143,12 @@ const ClientMessages = () => {
       partnerMap.forEach((conv, partnerId) => {
         const profile = profileMap.get(partnerId);
         if (profile) {
-          conv.partnerName = profile.name;
+          // For client view: show "Admin" for admin users, name for clients
+          conv.partnerName = formatChatPartnerName(profile, 'client');
           conv.partnerPhoto = profile.photo;
         } else {
-          // Fallback: use short ID when no profile found
-          conv.partnerName = `User #${partnerId.slice(-6)}`;
+          // Safe fallback - never expose internal IDs
+          conv.partnerName = 'Unknown User';
         }
       });
 
