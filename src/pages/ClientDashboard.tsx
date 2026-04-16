@@ -32,7 +32,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import imageCompression from 'browser-image-compression';
-import { BRAND_LOGO } from '@/lib/branding';
+import { ClientHeader } from '@/components/ClientHeader';
 
 interface ClientProfile {
   id: string;
@@ -365,49 +365,11 @@ const ClientDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={BRAND_LOGO} alt="Sri Lakshmi" className="w-12 h-12 object-contain" />
-            <h1 className="text-xl font-semibold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              My Profile
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate('/browse')} className="border-pink-200">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Browse
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Profile?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. All your data will be permanently deleted.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteProfile} className="bg-red-600 hover:bg-red-700">
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <Button variant="outline" onClick={handleSignOut} className="border-pink-200">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </header>
+      <ClientHeader
+        showBackButton
+        showLogoutButton
+        onSignOut={handleSignOut}
+      />
 
       {/* Welcome Section */}
       <div className="container mx-auto px-4 pt-6 max-w-4xl">

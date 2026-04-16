@@ -13,7 +13,7 @@ import { Loader2, ArrowLeft, Upload, X, Save, Heart, Plus, CheckCircle2, Circle 
 import { NotificationBell } from "@/components/NotificationBell";
 import { format } from "date-fns";
 import imageCompression from 'browser-image-compression';
-import { BRAND_LOGO } from "@/lib/branding";
+import { ClientHeader } from "@/components/ClientHeader";
 import { z } from "zod";
 import { Tables } from "@/integrations/supabase/types";
 import { calculateProfileCompletion, getProfileCompletionBreakdown, getFieldLabel } from "@/lib/profileCompletion";
@@ -461,28 +461,12 @@ const ClientProfile = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={BRAND_LOGO} alt="Sri Lakshmi" className="h-11 w-auto object-contain" />
-            <span className="text-lg font-semibold text-pink-700 hidden sm:inline">
-              {isNewUser ? "Create Profile" : "My Profile"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-            <Button variant="outline" onClick={() => navigate('/browse')} className="border-pink-200">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Browse
-            </Button>
-            {!isNewUser && (
-              <Button variant="outline" onClick={() => navigate('/client-auth')} className="border-pink-200">
-                Logout
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
+      <ClientHeader
+        showBackButton
+        showNotificationBell
+        showLogoutButton={!isNewUser}
+        onSignOut={() => navigate('/client-auth')}
+      />
 
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         {isNewUser && (

@@ -11,7 +11,7 @@ import { useShortlist } from "@/hooks/useShortlist";
 import { useBlockReport } from "@/hooks/useBlockReport";
 import ClientProfileViewDialog from "@/components/ClientProfileViewDialog";
 import InterestsPanel from "@/components/InterestsPanel";
-import { BRAND_LOGO } from "@/lib/branding";
+import { ClientHeader } from "@/components/ClientHeader";
 
 const Shortlists = () => {
   const navigate = useNavigate();
@@ -72,18 +72,7 @@ const Shortlists = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <img src={BRAND_LOGO} alt="Sri Lakshmi" className="w-10 h-10 object-contain" />
-          <h1 className="text-xl font-semibold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-            My Lists
-          </h1>
-        </div>
-      </header>
+      <ClientHeader showBackButton />
 
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="interests" className="w-full">

@@ -11,7 +11,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import AdvancedSearchFilters, { SearchFilters } from "@/components/AdvancedSearchFilters";
 import ViewLimitBanner from "@/components/ViewLimitBanner";
 import { useProfileViews } from "@/hooks/useProfileViews";
-import { BRAND_LOGO } from "@/lib/branding";
+import { ClientHeader } from "@/components/ClientHeader";
 import {
   Dialog,
   DialogContent,
@@ -226,54 +226,14 @@ const Browse = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img 
-              src={BRAND_LOGO} 
-              alt="Sri Lakshmi" 
-              className="w-12 h-12 object-contain"
-            />
-            <h1 className="text-xl md:text-2xl font-cursive font-semibold uppercase bg-gradient-to-r from-[#7b2ff7] to-[#f107a3] bg-clip-text text-transparent">
-              Browse Profiles
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              onClick={() => navigate("/shortlists")} 
-              variant="outline" 
-              className="border-pink-200 hover:bg-pink-50"
-            >
-              <Heart className="w-4 h-4 mr-1 text-pink-500" />
-              <span className="hidden md:inline">Interests</span>
-            </Button>
-            {SHOW_UPGRADE_UI && (
-              <Button onClick={() => navigate("/plans")} variant="default" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg">
-                <Crown className="w-4 h-4 mr-1" />
-                Upgrade
-              </Button>
-            )}
-            <Button 
-              onClick={() => navigate("/client-messages")} 
-              variant="outline" 
-              className="border-pink-200 hover:bg-pink-50"
-              title="Chat with admin"
-            >
-              <MessageSquare className="w-4 h-4 mr-1 text-pink-500" />
-              <span className="hidden md:inline">Chat</span>
-            </Button>
-            <NotificationBell />
-            <Button onClick={() => navigate("/client-profile")} variant="outline" className="border-pink-200 hover:bg-pink-50">
-              My Profile
-            </Button>
-            <Button onClick={handleSignOut} variant="outline" className="border-pink-200 hover:bg-pink-50">
-              <LogOut className="w-4 h-4 mr-2" />
-              <span className="hidden md:inline">Sign Out</span>
-            </Button>
-          </div>
-        </div>
-      </header>
+      <ClientHeader
+        showInterestsButton
+        showUpgradeButton={SHOW_UPGRADE_UI}
+        showNotificationBell
+        showMyProfileButton
+        showLogoutButton
+        onSignOut={handleSignOut}
+      />
 
       <div className="container mx-auto px-4 py-6">
         {/* View Limit Banner */}
