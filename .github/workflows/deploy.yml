@@ -258,6 +258,6 @@ jobs:
           echo ""
           echo "📱 Admin App: https://admin.vijayalakshmiboyarmatrimony.com"
           echo "👤 Client App: https://app.vijayalakshmiboyarmatrimony.com"
-          echo "⚙️  Backend API: https://matrimony-api.onrender.com"
+          echo "⚙️  Backend API: https://matrimony-backend-8hk0.onrender.com"
           echo ""
           echo "⏱️  Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
