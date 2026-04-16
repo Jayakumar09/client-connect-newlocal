@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Search, Send, Paperclip, Image, File as FileIcon, Mic, MicOff, X, ChevronDown, Play, Pause, Square, Trash2, Download } from "lucide-react";
 import { format, isToday, isYesterday, isThisWeek, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 import EmojiPicker from "@/components/EmojiPicker";
 import {
   DropdownMenu,
@@ -527,7 +527,7 @@ const AdminMessages: React.FC = () => {
       <header className="bg-primary text-primary-foreground shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoImage} alt="Sri Lakshmi Mangalya Malai" className="h-12 w-auto" />
+            <img src={BRAND_LOGO} alt="Sri Lakshmi Mangalya Malai" className="h-12 w-auto" />
             <span className="text-xl font-bold hidden sm:inline">ADMIN MESSAGES</span>
           </div>
           <Button variant="secondary" size="sm" onClick={() => navigate("/dashboard")}>

@@ -32,7 +32,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import imageCompression from 'browser-image-compression';
-import logoImage from '@/assets/sri-lakshmi-logo.png';
+import { BRAND_LOGO } from '@/lib/branding';
 
 interface ClientProfile {
   id: string;
@@ -369,7 +369,7 @@ const ClientDashboard = () => {
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoImage} alt="Sri Lakshmi" className="w-12 h-12 object-contain" />
+            <img src={BRAND_LOGO} alt="Sri Lakshmi" className="w-12 h-12 object-contain" />
             <h1 className="text-xl font-semibold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
               My Profile
             </h1>

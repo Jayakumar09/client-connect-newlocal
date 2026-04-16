@@ -4,7 +4,7 @@ import { Download, Phone, MapPin, Calendar, HardDrive, Image as ImageIcon, HardD
 import { Person } from "@/pages/Dashboard";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 import { useStorageSummary, formatBytesUtil, getStatusLabel, getStatusColor } from "@/hooks/useStorageSummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { dedupeUrls, getStableKey } from "@/lib/image-utils";
@@ -78,7 +78,7 @@ const PersonViewDialog = ({ person, open, onClose, onMarkMatched }: PersonViewDi
         <DialogHeader className="space-y-4 pb-4 border-b">
           <div className="flex items-center gap-4">
             <img 
-              src={logoImage}
+              src={BRAND_LOGO}
               alt="Sri Lakshmi Mangalya Malai" 
               className="w-16 h-16 object-contain"
             />

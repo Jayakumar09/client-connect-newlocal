@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Smartphone, CreditCard, Building2, QrCode, Copy, Check, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 import { Link } from "react-router-dom";
 
 const planDetails: Record<string, { name: string; price: number; duration: string; months: number }> = {
@@ -138,7 +138,7 @@ const Payments = () => {
       <header className="bg-primary text-primary-foreground shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/browse" className="flex items-center gap-3">
-            <img src={logoImage} alt="Sri Lakshmi Mangalya Mahal" className="h-12 w-auto" />
+            <img src={BRAND_LOGO} alt="Sri Lakshmi Mangalya Mahal" className="h-12 w-auto" />
             <span className="text-xl font-bold hidden sm:inline">PAYMENT</span>
           </Link>
           <div className="flex items-center gap-3">

@@ -11,7 +11,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import AdvancedSearchFilters, { SearchFilters } from "@/components/AdvancedSearchFilters";
 import ViewLimitBanner from "@/components/ViewLimitBanner";
 import { useProfileViews } from "@/hooks/useProfileViews";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 import {
   Dialog,
   DialogContent,
@@ -231,7 +231,7 @@ const Browse = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
-              src={logoImage} 
+              src={BRAND_LOGO} 
               alt="Sri Lakshmi" 
               className="w-12 h-12 object-contain"
             />

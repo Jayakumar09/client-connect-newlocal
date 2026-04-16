@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { z } from "zod";
 import { Mail, Phone, Lock, KeyRound, Heart, Eye, EyeOff, Wand2 } from "lucide-react";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 import { 
   signUpClient, 
   signInClient, 
@@ -512,7 +512,7 @@ const ClientAuth = () => {
           <div className="relative">
             <div className="mx-auto mb-3 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900/50 dark:to-purple-900/50 rounded-full p-5 w-fit shadow-lg">
               <img 
-                src={logoImage}
+                src={BRAND_LOGO}
                 alt="Sri Lakshmi Mangalya Malai" 
                 className="w-20 h-20 mx-auto object-contain"
               />

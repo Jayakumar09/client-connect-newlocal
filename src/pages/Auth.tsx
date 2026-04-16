@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { toast } from "sonner";
 import { z } from "zod";
 import { Users, Lock, KeyRound, Eye, EyeOff, Wand2 } from "lucide-react";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 import { isAdminApp } from "@/lib/config";
 
 const ADMIN_EMAIL = "vijayalakshmijayakumar45@gmail.com";
@@ -280,7 +280,7 @@ const Auth = () => {
           <CardHeader className="space-y-4 text-center border-b border-slate-100 dark:border-slate-800 pb-8">
             <div className="mx-auto mb-3 bg-slate-100 dark:bg-slate-800 rounded-2xl p-4 w-fit">
               <img 
-                src={logoImage}
+                src={BRAND_LOGO}
                 alt="Sri Lakshmi Mangalya Malai" 
                 className="w-20 h-20 mx-auto object-contain"
               />
@@ -376,7 +376,7 @@ const Auth = () => {
         <CardHeader className="space-y-4 text-center border-b border-slate-100 dark:border-slate-800 pb-8">
           <div className="mx-auto mb-3 bg-slate-100 dark:bg-slate-800 rounded-2xl p-4 w-fit">
             <img 
-              src={logoImage}
+              src={BRAND_LOGO}
               alt="Sri Lakshmi Mangalya Malai" 
               className="w-20 h-20 mx-auto object-contain"
             />

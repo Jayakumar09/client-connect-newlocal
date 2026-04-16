@@ -11,7 +11,7 @@ import { useShortlist } from "@/hooks/useShortlist";
 import { useBlockReport } from "@/hooks/useBlockReport";
 import ClientProfileViewDialog from "@/components/ClientProfileViewDialog";
 import InterestsPanel from "@/components/InterestsPanel";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 
 const Shortlists = () => {
   const navigate = useNavigate();
@@ -78,7 +78,7 @@ const Shortlists = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <img src={logoImage} alt="Sri Lakshmi" className="w-10 h-10 object-contain" />
+          <img src={BRAND_LOGO} alt="Sri Lakshmi" className="w-10 h-10 object-contain" />
           <h1 className="text-xl font-semibold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
             My Lists
           </h1>

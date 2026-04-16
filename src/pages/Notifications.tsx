@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Bell, Check, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 
 interface Notification {
   id: string;
@@ -128,7 +128,7 @@ const Notifications = () => {
       <header className="bg-primary text-primary-foreground shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoImage} alt="Sri Lakshmi Mangalya Mahal" className="h-12 w-auto" />
+            <img src={BRAND_LOGO} alt="Sri Lakshmi Mangalya Mahal" className="h-12 w-auto" />
             <span className="text-xl font-bold hidden sm:inline">NOTIFICATIONS</span>
           </div>
           <Button variant="secondary" size="sm" onClick={() => navigate(isAdmin ? "/dashboard" : "/browse")}>

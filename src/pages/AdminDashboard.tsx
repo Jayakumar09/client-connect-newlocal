@@ -17,7 +17,7 @@ import { BackupButton } from "@/components/BackupButton";
 import { StorageSummaryCard } from "@/components/StorageSummary";
 import { Tables } from "@/integrations/supabase/types";
 import { useStorageSummary, useSystemHealth } from "@/hooks/useStorageSummary";
-import { Pencil } from "lucide-react";
+import { BRAND_LOGO } from "@/lib/branding";
 import { PaginatedRecordGrid } from "@/components/PaginatedRecordGrid";
 import { dedupeUrls } from "@/lib/image-utils";
 
@@ -349,14 +349,16 @@ const AdminDashboard = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold text-2xl">
-                SL
-              </div>
+              <img 
+                src={BRAND_LOGO} 
+                alt="Sri Lakshmi Mangalya Malai" 
+                className="h-11 w-auto object-contain"
+              />
               <div className="flex-1 text-center">
-                <h1 className="text-3xl font-cursive bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-                  SRI LAKSHMI MANGALYA MALAI
+                <h1 className="text-2xl font-bold text-foreground">
+                  Admin Dashboard
                 </h1>
-                <p className="text-sm text-muted-foreground">Admin Dashboard • {user?.email}</p>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

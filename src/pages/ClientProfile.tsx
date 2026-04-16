@@ -13,7 +13,7 @@ import { Loader2, ArrowLeft, Upload, X, Save, Heart, Plus, CheckCircle2, Circle 
 import { NotificationBell } from "@/components/NotificationBell";
 import { format } from "date-fns";
 import imageCompression from 'browser-image-compression';
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 import { z } from "zod";
 import { Tables } from "@/integrations/supabase/types";
 import { calculateProfileCompletion, getProfileCompletionBreakdown, getFieldLabel } from "@/lib/profileCompletion";
@@ -453,7 +453,7 @@ const ClientProfile = () => {
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoImage} alt="Sri Lakshmi" className="w-12 h-12 object-contain" />
+            <img src={BRAND_LOGO} alt="Sri Lakshmi" className="w-12 h-12 object-contain" />
             <h1 className="text-xl font-semibold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
               {isNewUser ? "Create My Profile" : (profile?.full_name || "My Profile")}
             </h1>

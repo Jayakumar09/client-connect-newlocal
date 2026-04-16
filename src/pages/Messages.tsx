@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, MessageSquare, Settings } from "lucide-react";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 import ConversationList from "@/components/ConversationList";
 import ChatWindow from "@/components/ChatWindow";
 import PushNotificationToggle from "@/components/PushNotificationToggle";
@@ -51,7 +51,7 @@ const Messages = () => {
       <header className="bg-primary text-primary-foreground shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoImage} alt="Sri Lakshmi Mangalya Malai" className="h-12 w-auto" />
+            <img src={BRAND_LOGO} alt="Sri Lakshmi Mangalya Malai" className="h-12 w-auto" />
             <span className="text-xl font-bold hidden sm:inline">MESSAGES</span>
           </div>
           <div className="flex items-center gap-2">
