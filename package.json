@@ -10,7 +10,21 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:admin": "vite build --config vite.admin.config.ts --mode admin && node scripts/post-build.mjs",
+    "build:admin:dev": "vite build --config vite.admin.config.ts --mode admin:dev && node scripts/post-build.mjs",
+    "build:client": "vite build --config vite.client.config.ts --mode client && node scripts/post-build.mjs",
+    "build:client:dev": "vite build --config vite.client.config.ts --mode client:dev && node scripts/post-build.mjs",
+    "build:all": "npm run build:admin && npm run build:client",
+    "build:all:dev": "npm run build:admin:dev && npm run build:client:dev",
+    "preview:admin": "vite preview --outDir dist/admin --port 8081",
+    "preview:client": "vite preview --outDir dist/client --port 8080",
+    "clean": "rimraf dist && rimraf node_modules/.vite",
+    "verify:admin": "node scripts/verify-build.mjs admin",
+    "verify:client": "node scripts/verify-build.mjs client",
+    "verify:all": "npm run verify:admin && npm run verify:client",
+    "deploy:admin": "npm run build:admin && wrangler pages deploy dist/admin --project-name=vijayalakshmi-admin --config=wrangler-admin.toml",
+    "deploy:client": "npm run build:client && wrangler pages deploy dist/client --project-name=vijayalakshmi-client --config=wrangler-client.toml"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

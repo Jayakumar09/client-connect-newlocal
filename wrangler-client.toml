@@ -1,0 +1,38 @@
+name = "vijayalakshmi-client"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "dist/client"
+
+[vars]
+APP_AREA = "client"
+
+[[routes]]
+pattern = "app.vijayalakshmiboyarmatrimony.com"
+zone_name = "vijayalakshmiboyarmatrimony.com"
+
+[[headers]]
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://sujliykbkpxdxitgbzwi.supabase.co https://matrimony-api.onrender.com https://matrimony-backend-8hk0.onrender.com; frame-ancestors 'none';"
+
+[[headers]]
+for = "/assets/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/favicon.svg"
+[headers.values]
+Cache-Control = "public, max-age=86400"
+
+[[headers]]
+for = "/apple-touch-icon.png"
+[headers.values]
+Cache-Control = "public, max-age=86400"
+
+[[headers]]
+for = "/manifest.json"
+[headers.values]
+Content-Type = "application/manifest+json"

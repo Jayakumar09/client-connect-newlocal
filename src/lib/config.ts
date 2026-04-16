@@ -113,7 +113,18 @@ function detectArea(): AppArea {
   const hostname = getHostname();
   console.log('[Config] === DETECT AREA START ===');
   console.log('[Config] Full hostname:', hostname);
-  
+
+  // BUILD-TIME OVERRIDE: Use VITE_APP_AREA if set (for separate admin/client builds)
+  const buildTimeArea = import.meta.env.VITE_APP_AREA;
+  if (buildTimeArea === 'admin') {
+    console.log('[Config] Using VITE_APP_AREA=admin (build-time override)');
+    return 'admin';
+  }
+  if (buildTimeArea === 'client') {
+    console.log('[Config] Using VITE_APP_AREA=client (build-time override)');
+    return 'client';
+  }
+
   // Localhost development - use path-based fallback
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     console.log('[Config] Localhost detected, using path-based fallback');

@@ -1,0 +1,22 @@
+# Cloudflare Pages SPA Redirects for Client App
+# This file MUST be placed in dist/client/_redirects after build
+
+# Static assets - DO NOT rewrite to index.html
+/assets/*                  200
+/favicon.svg               200
+/favicon.ico               200
+/apple-touch-icon.png      200
+/robots.txt                200
+/mask-icon.svg             200
+
+# PWA assets
+/pwa-192x192.png           200
+/pwa-512x512.png           200
+/manifest.json             200
+/sw.js                     200
+
+# Images
+/images/*                  200
+
+# SPA fallback - only for non-asset routes
+/*                       /index.html   200
