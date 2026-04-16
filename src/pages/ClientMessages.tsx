@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Search, Send, Paperclip, Image, File as FileIcon, Mic, Play, Pause, Trash2, X, MessageSquare, Upload, Download } from "lucide-react";
 import { format, isToday, isYesterday, isThisWeek, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { BRAND_LOGO } from "@/lib/branding";
+import { ClientHeader } from "@/components/ClientHeader";
 import EmojiPicker from "@/components/EmojiPicker";
 import { toast } from "sonner";
 import { formatChatPartnerName } from "@/lib/chat-utils";
@@ -43,7 +43,7 @@ const ADMIN_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 const ClientMessages = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -66,6 +66,11 @@ const ClientMessages = () => {
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/client-auth");
+  };
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -552,19 +557,15 @@ const ClientMessages = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="bg-primary text-primary-foreground shadow-lg">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={BRAND_LOGO} alt="Sri Lakshmi Mangalya Malai" className="h-12 w-auto" />
-            <span className="text-xl font-bold hidden sm:inline">MESSAGES</span>
-          </div>
-          <Button variant="secondary" size="sm" onClick={() => navigate("/browse")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Browse
-          </Button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100 flex flex-col">
+      <ClientHeader
+        showBackButton
+        showInterestsButton
+        showChatButton
+        showMyProfileButton
+        showLogoutButton
+        onSignOut={handleSignOut}
+      />
 
       <main className="flex-1 container mx-auto px-4 py-4">
         <Card className="h-[calc(100vh-140px)]">
