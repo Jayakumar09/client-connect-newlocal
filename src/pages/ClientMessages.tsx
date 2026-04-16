@@ -87,7 +87,7 @@ const ClientMessages = () => {
         if (!partnerMap.has(partnerId)) {
           partnerMap.set(partnerId, {
             partnerId,
-            partnerName: "Admin", // Will be updated after fetching profiles
+            partnerName: "Admin", // Default to Admin for client view
             partnerPhoto: null,
             lastMessage: msg.message || (msg.attachment_url ? '[Attachment]' : ''),
             lastMessageTime: msg.created_at,
@@ -109,46 +109,54 @@ const ClientMessages = () => {
       const partnerIds = Array.from(partnerMap.keys());
       console.log('[ClientMessages] Unique partners:', partnerIds);
 
-      // Fetch partner profiles from both tables
-      const [clientProfiles, adminProfiles] = await Promise.all([
-        partnerIds.length > 0 
-          ? supabase.from('client_profiles').select('user_id, full_name, profile_photo').in('user_id', partnerIds)
-          : { data: null },
-        partnerIds.length > 0 
-          ? supabase.from('persons').select('user_id, name, profile_image').in('user_id', partnerIds)
-          : { data: null }
+      if (partnerIds.length === 0) {
+        setConversations([]);
+        return;
+      }
+
+      // Fetch all partner profiles from both tables
+      const [clientProfilesResult, adminProfilesResult] = await Promise.all([
+        supabase.from('client_profiles').select('user_id, full_name, profile_photo').in('user_id', partnerIds),
+        supabase.from('persons').select('user_id, name, profile_image').in('user_id', partnerIds)
       ]);
 
-      const profileMap = new Map<string, { name: string; photo: string | null; type: 'admin' | 'client' }>();
+      const clientProfiles = clientProfilesResult.data || [];
+      const adminProfiles = adminProfilesResult.data || [];
       
-      // First add admin profiles (from persons table)
-      adminProfiles.data?.forEach(p => {
-        profileMap.set(p.user_id, { 
-          name: p.name || 'Admin', 
-          photo: p.profile_image || null,
-          type: 'admin'
-        });
-      });
-      
-      // Then client profiles (they override if user has both)
-      clientProfiles.data?.forEach(p => {
-        profileMap.set(p.user_id, { 
-          name: p.full_name || 'Unknown User', 
-          photo: p.profile_photo || null,
-          type: 'client'
-        });
-      });
+      console.log('[ClientMessages] clientProfiles:', clientProfiles);
+      console.log('[ClientMessages] adminProfiles:', adminProfiles);
 
-      // Update conversation names with actual profile data
+      // Build set of admin user_ids (anyone in persons table is admin)
+      const adminUserIds = new Set(adminProfiles.map(p => p.user_id));
+      console.log('[ClientMessages] Admin user_ids:', Array.from(adminUserIds));
+
+      // Update conversation names
       partnerMap.forEach((conv, partnerId) => {
-        const profile = profileMap.get(partnerId);
-        if (profile) {
-          // For client view: show "Admin" for admin users, name for clients
-          conv.partnerName = formatChatPartnerName(profile, 'client');
-          conv.partnerPhoto = profile.photo;
+        console.log('[ClientMessages] Processing partner:', partnerId);
+        
+        // Check if this partner is an admin (exists in persons table)
+        const isAdmin = adminUserIds.has(partnerId);
+        console.log('[ClientMessages] Partner', partnerId, 'isAdmin:', isAdmin);
+
+        if (isAdmin) {
+          // Admin: show just "Admin" for client view
+          const adminProfile = adminProfiles.find(p => p.user_id === partnerId);
+          conv.partnerName = 'Admin';
+          conv.partnerPhoto = adminProfile?.profile_image || null;
+          console.log('[ClientMessages] Set partner name to Admin for:', partnerId);
         } else {
-          // Safe fallback - never expose internal IDs
-          conv.partnerName = 'Unknown User';
+          // Client profile: show name
+          const clientProfile = clientProfiles.find(p => p.user_id === partnerId);
+          if (clientProfile) {
+            conv.partnerName = clientProfile.full_name || 'User';
+            conv.partnerPhoto = clientProfile.profile_photo;
+            console.log('[ClientMessages] Set partner name to:', conv.partnerName, 'for:', partnerId);
+          } else {
+            // If not found in either table, default to Admin for client view
+            // (Most common case: client chatting with admin)
+            console.log('[ClientMessages] Partner not in profiles, defaulting to Admin for:', partnerId);
+            conv.partnerName = 'Admin';
+          }
         }
       });
 
