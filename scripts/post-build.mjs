@@ -4,56 +4,43 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const target = process.argv[2] || 'all';
+const apps = target === 'all' ? ['admin', 'client'] : [target];
 
 function copyRedirects() {
-  const adminRedirects = join(__dirname, '..', 'admin', '_redirects');
-  const clientRedirects = join(__dirname, '..', 'client', '_redirects');
-  const distAdminRedirects = join(__dirname, '..', 'dist', 'admin', '_redirects');
-  const distClientRedirects = join(__dirname, '..', 'dist', 'client', '_redirects');
+  for (const app of apps) {
+    const srcRedirects = join(__dirname, '..', app, '_redirects');
+    const distRedirects = join(__dirname, '..', 'dist', app, '_redirects');
 
-  if (existsSync(adminRedirects)) {
-    mkdirSync(join(__dirname, '..', 'dist', 'admin'), { recursive: true });
-    copyFileSync(adminRedirects, distAdminRedirects);
-    console.log('✓ Copied admin/_redirects');
-  }
+    if (existsSync(srcRedirects)) {
+      mkdirSync(join(__dirname, '..', 'dist', app), { recursive: true });
+      copyFileSync(srcRedirects, distRedirects);
+      console.log(`✓ Copied ${app}/_redirects`);
+    }
 
-  if (existsSync(clientRedirects)) {
-    mkdirSync(join(__dirname, '..', 'dist', 'client'), { recursive: true });
-    copyFileSync(clientRedirects, distClientRedirects);
-    console.log('✓ Copied client/_redirects');
-  }
-
-  const adminHtml = join(__dirname, '..', 'dist', 'admin', 'admin.html');
-  const adminIndex = join(__dirname, '..', 'dist', 'admin', 'index.html');
-  if (existsSync(adminHtml)) {
-    copyFileSync(adminHtml, adminIndex);
-    console.log('✓ Renamed admin.html to index.html');
-  }
-
-  const clientHtml = join(__dirname, '..', 'dist', 'client', 'client.html');
-  const clientIndex = join(__dirname, '..', 'dist', 'client', 'index.html');
-  if (existsSync(clientHtml)) {
-    copyFileSync(clientHtml, clientIndex);
-    console.log('✓ Renamed client.html to index.html');
+    const htmlFile = join(__dirname, '..', 'dist', app, `${app}.html`);
+    const indexFile = join(__dirname, '..', 'dist', app, 'index.html');
+    if (existsSync(htmlFile)) {
+      copyFileSync(htmlFile, indexFile);
+      console.log(`✓ Renamed ${app}.html to index.html`);
+    }
   }
 }
 
 function copyPublicAssets() {
   const publicDir = join(__dirname, '..', 'public');
-  const distAdminPublic = join(__dirname, '..', 'dist', 'admin');
-  const distClientPublic = join(__dirname, '..', 'dist', 'client');
 
   if (existsSync(publicDir)) {
-    cpSync(publicDir, distAdminPublic, { recursive: true, overwrite: true });
-    cpSync(publicDir, distClientPublic, { recursive: true, overwrite: true });
-    console.log('✓ Copied public assets to dist/admin and dist/client');
+    for (const app of apps) {
+      cpSync(publicDir, join(__dirname, '..', 'dist', app), { recursive: true, overwrite: true });
+      console.log(`✓ Copied public assets to dist/${app}`);
+    }
   }
 }
 
 function verifyAssets() {
-  for (const app of ['admin', 'client']) {
+  for (const app of apps) {
     const indexPath = join(__dirname, '..', 'dist', app, 'index.html');
-    const assetsDir = join(__dirname, '..', 'dist', app, 'assets');
 
     if (!existsSync(indexPath)) {
       console.error(`✗ Missing index.html in dist/${app}`);
@@ -104,7 +91,7 @@ function generateETag() {
 
   const etag = crypto.createHash('md5').update(JSON.stringify(buildInfo)).digest('hex').slice(0, 12);
 
-  for (const app of ['admin', 'client']) {
+  for (const app of apps) {
     const etagFile = join(__dirname, '..', 'dist', app, 'ETAG');
     writeFileSync(etagFile, etag);
     console.log(`✓ Generated ETag for ${app}: ${etag}`);
@@ -114,7 +101,7 @@ function generateETag() {
 }
 
 function main() {
-  console.log('Running post-build steps...\n');
+  console.log(`Running post-build steps for: ${target}...\n`);
 
   copyRedirects();
   copyPublicAssets();
