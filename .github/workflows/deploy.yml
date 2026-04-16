@@ -1,35 +1,20 @@
-name: Deploy
+name: Deploy Backend
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      deploy_frontend:
-        description: 'Deploy Frontend (Cloudflare)'
-        required: false
-        default: 'true'
-        type: boolean
-      deploy_backend:
-        description: 'Deploy Backend (Render)'
-        required: false
-        default: 'true'
-        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
-env:
-  NODE_VERSION: '24'
 
 jobs:
   setup:
     name: Determine Deployment Scope
     runs-on: ubuntu-latest
     outputs:
-      deploy_frontend: ${{ steps.filter.outputs.frontend }}
       deploy_backend: ${{ steps.filter.outputs.backend }}
     steps:
       - name: Checkout code
@@ -53,63 +38,10 @@ jobs:
         with:
           base: ${{ steps.base.outputs.base_sha }}
           filters: |
-            frontend:
-              - '.github/workflows/**'
-              - 'vite.admin.config.ts'
-              - 'vite.client.config.ts'
-              - 'admin/**'
-              - 'client/**'
-              - 'src/**'
-              - 'public/**'
-              - 'package.json'
-              - 'package-lock.json'
-              - 'wrangler-admin.toml'
-              - 'wrangler-client.toml'
-              - 'scripts/**'
             backend:
               - 'server/**'
               - 'package.json'
               - 'package-lock.json'
-
-  deploy-frontend:
-    name: Deploy Frontend
-    needs: setup
-    if: needs.setup.outputs.deploy_frontend == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build admin
-        run: npm run build:admin
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-
-      - name: Build client
-        run: npm run build:client
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-
-      - name: Deploy to Cloudflare Pages
-        run: |
-          npx wrangler pages deploy dist/admin --project-name=client-connect-newlocal
-          npx wrangler pages deploy dist/client --project-name=client-connect-newlocal
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-backend:
     name: Deploy Backend
