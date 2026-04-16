@@ -114,16 +114,7 @@ jobs:
           echo "Frontend changed: ${{ steps.filter.outputs.frontend }}"
           echo "Backend changed: ${{ steps.filter.outputs.backend }}"
 
-      # Override for manual dispatch
-      - name: Override for manual dispatch
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          echo "Manual dispatch: frontend=${{ github.event.inputs.deploy_frontend }}, backend=${{ github.event.inputs.deploy_backend }}"
-          echo "deploy_frontend=${{ github.event.inputs.deploy_frontend }}" >> $GITHUB_OUTPUT
-          echo "deploy_backend=${{ github.event.inputs.deploy_backend }}" >> $GITHUB_OUTPUT
-        env:
-          deploy_frontend: ${{ github.event.inputs.deploy_frontend }}
-          deploy_backend: ${{ github.event.inputs.deploy_backend }}
+
 
   # ------------------------------------------------------------
   # JOB: Deploy Frontend to Cloudflare Pages
