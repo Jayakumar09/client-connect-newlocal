@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Heart, LogOut, ArrowLeft, Loader2 } from "lucide-react";
+import { Heart, LogOut, ArrowLeft, Loader2, MessageSquare } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BRAND_LOGO, BRAND_NAME } from "@/lib/branding";
 
@@ -11,6 +11,7 @@ interface ClientHeaderProps {
   showUpgradeButton?: boolean;
   showMyProfileButton?: boolean;
   showLogoutButton?: boolean;
+  showChatButton?: boolean;
   onSignOut?: () => void;
   loading?: boolean;
 }
@@ -22,6 +23,7 @@ export function ClientHeader({
   showUpgradeButton = false,
   showMyProfileButton = false,
   showLogoutButton = false,
+  showChatButton = false,
   onSignOut,
   loading = false,
 }: ClientHeaderProps) {
@@ -70,6 +72,18 @@ export function ClientHeader({
             >
               <Heart className="w-4 h-4 mr-1 text-pink-500" />
               <span className="hidden sm:inline">Interests</span>
+            </Button>
+          )}
+
+          {showChatButton && (
+            <Button
+              onClick={() => navigate("/client-messages")}
+              variant="outline"
+              className="border-pink-200 hover:bg-pink-50 text-xs md:text-sm"
+              title="Chat with admin"
+            >
+              <MessageSquare className="w-4 h-4 mr-1 text-pink-500" />
+              <span className="hidden sm:inline">Chat</span>
             </Button>
           )}
 

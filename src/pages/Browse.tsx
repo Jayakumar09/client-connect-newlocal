@@ -228,6 +228,7 @@ const Browse = () => {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
       <ClientHeader
         showInterestsButton
+        showChatButton
         showUpgradeButton={SHOW_UPGRADE_UI}
         showNotificationBell
         showMyProfileButton
