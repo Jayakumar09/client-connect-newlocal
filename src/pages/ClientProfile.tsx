@@ -24,6 +24,17 @@ type ClientProfile = Tables<"client_profiles"> & {
   match_remarks?: string | null;
 };
 
+function calculateAge(dateOfBirth: string): number {
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
+
 const profileFormSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
   phone_number: z.string().optional(),
@@ -453,10 +464,10 @@ const ClientProfile = () => {
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={BRAND_LOGO} alt="Sri Lakshmi" className="w-12 h-12 object-contain" />
-            <h1 className="text-xl font-semibold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              {isNewUser ? "Create My Profile" : (profile?.full_name || "My Profile")}
-            </h1>
+            <img src={BRAND_LOGO} alt="Sri Lakshmi" className="h-11 w-auto object-contain" />
+            <span className="text-lg font-semibold text-pink-700 hidden sm:inline">
+              {isNewUser ? "Create Profile" : "My Profile"}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
@@ -564,6 +575,63 @@ const ClientProfile = () => {
                     </p>
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isNewUser && profile && (
+          <Card className="bg-white border-pink-200 mb-6">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  {profile.profile_photo ? (
+                    <img 
+                      src={profile.profile_photo} 
+                      alt={profile.full_name} 
+                      className="w-20 h-20 object-cover rounded-full border-2 border-pink-200"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-2xl font-bold border-2 border-pink-200">
+                      {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                    </div>
+                  )}
+                  {profile.payment_status === 'paid' && (
+                    <span className="absolute -bottom-1 -right-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Premium
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xl font-semibold text-gray-900 truncate">
+                    {profile.full_name}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Profile ID: {profile.id?.slice(0, 8).toUpperCase() || 'N/A'}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    {profile.date_of_birth && (
+                      <span className="text-xs bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full">
+                        {calculateAge(profile.date_of_birth)} years
+                      </span>
+                    )}
+                    {profile.religion && (
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                        {profile.religion}
+                      </span>
+                    )}
+                    {profile.caste && (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                        {profile.caste}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm font-medium text-pink-700">Completion</p>
+                  <p className="text-2xl font-bold text-purple-600">{profileCompletion}%</p>
+                </div>
               </div>
             </CardContent>
           </Card>
