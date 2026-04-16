@@ -103,14 +103,10 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
-      - name: Deploy admin to Cloudflare Pages
-        run: npx wrangler pages deploy dist/admin --project-name=vijayalakshmi-admin
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Deploy client to Cloudflare Pages
-        run: npx wrangler pages deploy dist/client --project-name=vijayalakshmi-client
+      - name: Deploy to Cloudflare Pages
+        run: |
+          npx wrangler pages deploy dist/admin --project-name=client-connect-newlocal
+          npx wrangler pages deploy dist/client --project-name=client-connect-newlocal
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
