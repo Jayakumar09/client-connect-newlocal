@@ -12,6 +12,7 @@ interface ClientHeaderProps {
   showMyProfileButton?: boolean;
   showLogoutButton?: boolean;
   showChatButton?: boolean;
+  showBackToDashboard?: boolean;
   onSignOut?: () => void;
   loading?: boolean;
 }
@@ -24,6 +25,7 @@ export function ClientHeader({
   showMyProfileButton = false,
   showLogoutButton = false,
   showChatButton = false,
+  showBackToDashboard = false,
   onSignOut,
   loading = false,
 }: ClientHeaderProps) {
@@ -105,6 +107,18 @@ export function ClientHeader({
             >
               <span className="hidden sm:inline">My Profile</span>
               <span className="sm:hidden">Profile</span>
+            </Button>
+          )}
+
+          {showBackToDashboard && (
+            <Button
+              onClick={() => navigate("/browse")}
+              variant="outline"
+              className="border-pink-200 hover:bg-pink-50 text-xs md:text-sm"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Back to Dashboard</span>
+              <span className="sm:hidden">Dashboard</span>
             </Button>
           )}
 
