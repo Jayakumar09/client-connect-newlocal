@@ -124,31 +124,31 @@ const AdminMessages: React.FC = () => {
       const partnerIds = Array.from(partnerMap.keys());
       
       if (partnerIds.length > 0) {
+        // Cast to any to bypass outdated TypeScript types - profile_id exists in DB
         const { data: profiles } = await supabase
           .from("client_profiles")
           .select("user_id, full_name, profile_photo, phone_number, email, profile_id")
-          .in("user_id", partnerIds);
+          .in("user_id", partnerIds) as any;
 
         const profileMap = new Map(
-          profiles?.map(p => [p.user_id, p]) || []
+          (profiles || []).map((p: any) => [p.user_id, p])
         );
 
         partnerMap.forEach((conv, partnerId) => {
-          const profile = profileMap.get(partnerId);
+          const profile: any = profileMap.get(partnerId);
           if (profile) {
             conv.profileId = profile.profile_id || undefined;
-            conv.partnerName = formatChatPartnerName({
-              name: profile.full_name || "Unknown User",
-              photo: profile.profile_photo,
-              type: 'client',
-              profileId: profile.profile_id || undefined
-            }, 'admin');
+            conv.partnerName = profile.full_name 
+              ? `${profile.full_name} / Profile ID: ${profile.profile_id || 'N/A'}`
+              : 'Unknown User';
             conv.partnerPhoto = profile.profile_photo;
             conv.phoneNumber = profile.phone_number || undefined;
             conv.email = profile.email || undefined;
+            console.log('[AdminMessages] Loaded profile:', profile.full_name, 'Profile ID:', profile.profile_id);
           } else {
             // Safe fallback - never expose internal IDs
             conv.partnerName = 'Unknown User';
+            console.log('[AdminMessages] No profile found for:', partnerId);
           }
         });
       }
