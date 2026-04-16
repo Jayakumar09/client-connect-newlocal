@@ -510,13 +510,11 @@ const ClientAuth = () => {
         <CardHeader className="space-y-4 text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-pink-100/50 via-purple-100/50 to-rose-100/50 dark:from-pink-900/20 dark:via-purple-900/20 dark:to-rose-900/20" />
           <div className="relative">
-            <div className="mx-auto mb-3 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900/50 dark:to-purple-900/50 rounded-full p-5 w-fit shadow-lg">
-              <img 
-                src={BRAND_LOGO}
-                alt="Sri Lakshmi Mangalya Malai" 
-                className="w-20 h-20 mx-auto object-contain"
-              />
-            </div>
+            <img 
+              src={BRAND_LOGO}
+              alt="Sri Lakshmi Mangalya Malai" 
+              className="h-16 w-auto mx-auto mb-3 object-contain"
+            />
             <div className="flex items-center justify-center gap-2 mb-2">
               <Heart className="w-6 h-6 text-pink-500 dark:text-pink-400 fill-pink-500 dark:fill-pink-400" />
               <CardTitle className="text-[32px] font-cursive font-semibold uppercase text-center bg-gradient-to-r from-pink-600 via-purple-600 to-rose-600 dark:from-pink-400 dark:via-purple-400 dark:to-rose-400 bg-clip-text text-transparent">
