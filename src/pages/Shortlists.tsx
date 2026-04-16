@@ -72,7 +72,7 @@ const Shortlists = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
-      <ClientHeader showBackButton />
+      <ClientHeader showBackToDashboard showNotificationBell />
 
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="interests" className="w-full">
