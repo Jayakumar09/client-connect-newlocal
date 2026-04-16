@@ -569,9 +569,9 @@ const ClientProfile = () => {
             <CardContent className="py-4">
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  {profile.profile_photo ? (
+                  {profilePhotoPreview || profile.profile_photo ? (
                     <img 
-                      src={profile.profile_photo} 
+                      src={profilePhotoPreview || profile.profile_photo!} 
                       alt={profile.full_name} 
                       className="w-20 h-20 object-cover rounded-full border-2 border-pink-200"
                     />
@@ -586,6 +586,15 @@ const ClientProfile = () => {
                       Premium
                     </span>
                   )}
+                  <label className="absolute inset-0 cursor-pointer rounded-full opacity-0 hover:opacity-100 transition-opacity bg-black/40 flex items-center justify-center">
+                    <Upload className="w-5 h-5 text-white" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfilePhotoChange}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-xl font-semibold text-gray-900 truncate">
@@ -1009,41 +1018,6 @@ const ClientProfile = () => {
                 </div>
               </CardContent>
             </Card>
-
-            {!isNewUser && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-pink-700">Profile Photo</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {(profilePhotoPreview || profile?.profile_photo) && (
-                      <div className="relative w-32 h-32 mx-auto rounded-lg overflow-hidden bg-muted">
-                        <img 
-                          src={profilePhotoPreview || profile?.profile_photo!} 
-                          alt="Profile" 
-                          className="w-full h-full object-cover" 
-                        />
-                      </div>
-                    )}
-                    <div className="flex justify-center">
-                      <label className="cursor-pointer">
-                        <div className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-muted">
-                          <Upload className="h-4 w-4" />
-                          <span>{profilePhotoPreview || profile?.profile_photo ? 'Change Photo' : 'Upload Photo'}</span>
-                        </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleProfilePhotoChange}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {!isNewUser && (
               <Card>
