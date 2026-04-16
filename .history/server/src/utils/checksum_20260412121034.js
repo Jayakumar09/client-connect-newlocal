@@ -8,7 +8,6 @@ function calculateFileChecksum(filePath, algorithm = 'sha256') {
       return reject(new Error(`File not found: ${filePath}`));
     }
 
-    
     const hash = crypto.createHash(algorithm);
     const stream = fs.createReadStream(filePath);
     

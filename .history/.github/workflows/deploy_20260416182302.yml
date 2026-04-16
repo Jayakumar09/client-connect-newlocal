@@ -1,0 +1,101 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  setup:
+    name: Determine Deployment Scope
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_frontend: ${{ steps.filter.outputs.frontend }}
+      deploy_backend: ${{ steps.filter.outputs.backend }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check file changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - '.github/workflows/**'
+              - 'vite.admin.config.ts'
+              - 'vite.client.config.ts'
+              - 'admin/**'
+              - 'client/**'
+              - 'src/**'
+              - 'public/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'wrangler-admin.toml'
+              - 'wrangler-client.toml'
+              - 'scripts/**'
+            backend:
+              - 'server/**'
+              - 'package.json'
+              - 'package-lock.json'
+
+      - name: Show changed files
+        run: |
+          echo "Frontend changed: ${{ steps.filter.outputs.frontend }}"
+          echo "Backend changed: ${{ steps.filter.outputs.backend }}"
+
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: setup
+    if: needs.setup.outputs.deploy_frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build admin
+        run: npm run build:admin
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: Build client
+        run: npm run build:client
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: Deploy admin to Cloudflare Pages
+        run: npx wrangler pages deploy dist/admin --project-name=vijayalakshmi-admin
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy client to Cloudflare Pages
+        run: npx wrangler pages deploy dist/client --project-name=vijayalakshmi-client
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-backend:
+    name: Deploy Backend
+    needs: setup
+    if: needs.setup.outputs.deploy_backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
