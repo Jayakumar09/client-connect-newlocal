@@ -26,8 +26,8 @@ router.post('/backup/create', async (req, res) => {
   } = req.body;
 
   const config = {
-    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
-    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+    SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     TEMP_BACKUP_DIR: process.env.TEMP_BACKUP_DIR || './temp/backup',
     BACKUP_OUTPUT_DIR: process.env.BACKUP_OUTPUT_DIR || './backups',
@@ -93,8 +93,8 @@ router.post('/backup/verify', async (req, res) => {
   }
 
   const config = {
-    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
-    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+    SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
     TEMP_BACKUP_DIR: process.env.TEMP_BACKUP_DIR || './temp/backup'
   };
 
@@ -127,8 +127,8 @@ router.post('/restore/verify', async (req, res) => {
   }
 
   const config = {
-    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
-    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+    SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
     TEMP_BACKUP_DIR: process.env.TEMP_BACKUP_DIR || './temp/restore'
   };
 
@@ -171,8 +171,8 @@ router.post('/restore/run', async (req, res) => {
   }
 
   const config = {
-    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
-    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+    SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     TEMP_BACKUP_DIR: process.env.TEMP_BACKUP_DIR || './temp/restore'
   };

@@ -101,10 +101,10 @@ export class GoogleDriveBackupService {
 
   private getSupabaseClient(): SupabaseClient {
     if (!this.supabase) {
-      const url = process.env.VITE_SUPABASE_URL;
-      const key = process.env.VITE_SUPABASE_ANON_KEY;
+      const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
       if (!url || !key) {
-        throw new Error('VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set');
+        throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
       }
       this.supabase = createClient(url, key);
     }
