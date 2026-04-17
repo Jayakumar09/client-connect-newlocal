@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const router = Router();
 
@@ -13,16 +13,18 @@ interface ProfileSectionConfig {
   updated_at: string;
 }
 
-function getSupabase() {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+type SupabaseClientOrNull = SupabaseClient | null;
+
+function getSupabase(): SupabaseClientOrNull {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseKey) {
     console.warn('[ProfileSectionConfig] Supabase not configured, returning empty sections');
     return null;
   }
   
-  return createClient(supabaseUrl, supabaseAnonKey);
+  return createClient(supabaseUrl, supabaseKey);
 }
 
 router.get('/sections', async (_req: Request, res: Response) => {
