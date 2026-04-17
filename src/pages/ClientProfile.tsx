@@ -86,6 +86,14 @@ const ClientProfile = () => {
   const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
   const [existingGalleryImages, setExistingGalleryImages] = useState<string[]>([]);
   const [lastSignIn, setLastSignIn] = useState<string | null>(null);
+  const [sectionJumpItems, setSectionJumpItems] = useState<{ key: string; label: string }[]>([]);
+
+  const defaultSections = [
+    { key: 'personal_details', label: 'Personal Details' },
+    { key: 'career_education', label: 'Career & Education' },
+    { key: 'location', label: 'Location' },
+    { key: 'family_details', label: 'Family Details' },
+  ];
 
   const profileCompletion = useMemo(() => {
     if (!profile) return 0;
@@ -119,7 +127,35 @@ const ClientProfile = () => {
     }
     
     fetchProfile();
+    fetchSectionConfig();
   }, [authLoading, isAuthenticated, isAdmin, navigate]);
+
+  const fetchSectionConfig = async () => {
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_BASE_URL}/api/sections`);
+      const result = await response.json();
+      
+      if (result.success && result.data && result.data.length > 0) {
+        setSectionJumpItems(result.data.map((s: { section_key: string; section_label: string }) => ({
+          key: s.section_key,
+          label: s.section_label,
+        })));
+      } else {
+        setSectionJumpItems(defaultSections);
+      }
+    } catch (err) {
+      console.error('[ClientProfile] Failed to fetch section config, using defaults:', err);
+      setSectionJumpItems(defaultSections);
+    }
+  };
+
+  const handleSectionJump = (key: string) => {
+    const element = document.getElementById(`section-${key}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -466,6 +502,8 @@ const ClientProfile = () => {
         showNotificationBell
         showLogoutButton={!isNewUser}
         onSignOut={() => navigate('/client-auth')}
+        sectionJumpItems={sectionJumpItems}
+        onSectionJump={handleSectionJump}
       />
 
       <div className="container mx-auto px-4 py-6 max-w-4xl">
@@ -740,7 +778,7 @@ const ClientProfile = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card id="section-personal_details">
               <CardHeader>
                 <CardTitle className="text-pink-700">Personal Details</CardTitle>
               </CardHeader>
@@ -840,7 +878,7 @@ const ClientProfile = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card id="section-career_education">
               <CardHeader>
                 <CardTitle className="text-pink-700">Career & Education</CardTitle>
               </CardHeader>
@@ -886,7 +924,7 @@ const ClientProfile = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card id="section-location">
               <CardHeader>
                 <CardTitle className="text-pink-700">Location</CardTitle>
               </CardHeader>
@@ -923,7 +961,7 @@ const ClientProfile = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card id="section-family_details">
               <CardHeader>
                 <CardTitle className="text-pink-700">Family Details</CardTitle>
               </CardHeader>

@@ -1,8 +1,19 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Heart, LogOut, ArrowLeft, Loader2, MessageSquare } from "lucide-react";
+import { Heart, LogOut, ArrowLeft, Loader2, MessageSquare, ChevronDown } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BRAND_LOGO, BRAND_NAME } from "@/lib/branding";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+interface SectionItem {
+  key: string;
+  label: string;
+}
 
 interface ClientHeaderProps {
   showBackButton?: boolean;
@@ -13,6 +24,8 @@ interface ClientHeaderProps {
   showLogoutButton?: boolean;
   showChatButton?: boolean;
   showBackToDashboard?: boolean;
+  sectionJumpItems?: SectionItem[];
+  onSectionJump?: (key: string) => void;
   onSignOut?: () => void;
   loading?: boolean;
 }
@@ -26,6 +39,8 @@ export function ClientHeader({
   showLogoutButton = false,
   showChatButton = false,
   showBackToDashboard = false,
+  sectionJumpItems,
+  onSectionJump,
   onSignOut,
   loading = false,
 }: ClientHeaderProps) {
@@ -111,15 +126,40 @@ export function ClientHeader({
           )}
 
           {showBackToDashboard && (
-            <Button
-              onClick={() => navigate("/browse")}
-              variant="outline"
-              className="border-pink-200 hover:bg-pink-50 text-xs md:text-sm"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Back to Dashboard</span>
-              <span className="sm:hidden">Dashboard</span>
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                onClick={() => navigate("/browse")}
+                variant="outline"
+                className="border-pink-200 hover:bg-pink-50 text-xs md:text-sm"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Back to Dashboard</span>
+                <span className="sm:hidden">Dashboard</span>
+              </Button>
+              {sectionJumpItems && sectionJumpItems.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="border-pink-200 hover:bg-pink-50 text-xs md:text-sm px-2"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {sectionJumpItems.map((item) => (
+                      <DropdownMenuItem
+                        key={item.key}
+                        onClick={() => onSectionJump?.(item.key)}
+                        className="cursor-pointer"
+                      >
+                        {item.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           )}
 
           {showNotificationBell && <NotificationBell />}

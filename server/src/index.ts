@@ -28,6 +28,7 @@ import backupRoutes from './routes/backup-routes.js';
 import adminRoutes from './routes/admin-routes.js';
 import backupRestoreRoutes from './routes/backup-restore-routes.js';
 import chatRoutes from './routes/chat-routes.js';
+import sectionConfigRoutes from './routes/section-config-routes.js';
 
 const app = express();
 
@@ -169,6 +170,7 @@ app.use('/api/admin/backup', backupRestoreRoutes);
 app.use('/api/admin/restore', backupRestoreRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/sections', sectionConfigRoutes);
 
 // ============================================
 // Error Handling
