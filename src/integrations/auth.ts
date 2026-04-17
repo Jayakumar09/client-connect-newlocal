@@ -128,6 +128,12 @@ export async function signUpClient(
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.toLowerCase(),
       password,
+      options: {
+        emailRedirectTo: undefined,
+        data: {
+          full_name: profileData.fullName,
+        }
+      }
     });
 
     console.log('[Auth] Signup response:', { hasUser: !!authData?.user, hasError: !!authError, error: authError?.message });
@@ -143,6 +149,45 @@ export async function signUpClient(
       return { success: false, error: 'Failed to create account. Please try again.' };
     }
 
+    console.log('[Auth] User created, email confirmed:', authData.user.email_confirmed_at !== null);
+
+    // If email is NOT confirmed yet, we cannot sign in immediately
+    // Return success but with needsProfileCreation so user goes to complete profile
+    if (!authData.user.email_confirmed_at) {
+      console.log('[Auth] Email not confirmed yet, creating profile and returning');
+      
+      // Still create the profile
+      const { error: profileError } = await supabase
+        .from('client_profiles')
+        .insert({
+          user_id: authData.user.id,
+          full_name: profileData.fullName,
+          email: email.toLowerCase(),
+          gender: profileData.gender,
+          date_of_birth: profileData.dateOfBirth,
+          religion: profileData.religion,
+          profile_created_for: profileData.profileCreatedFor,
+          country: 'India',
+          country_code: '+91',
+          is_profile_active: true,
+          show_phone_number: false,
+          payment_status: 'free',
+          created_by: 'client',
+        });
+
+      if (profileError) {
+        console.error('[Auth] Profile insert error:', profileError.message);
+      }
+      
+      clearRateLimit(clientRateLimit);
+      return { 
+        success: true, 
+        needsProfileCreation: false,
+        isNewUser: true,
+        user: authData.user 
+      };
+    }
+
     console.log('[Auth] User created, attempting immediate sign in...');
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: email.toLowerCase(),
@@ -151,19 +196,34 @@ export async function signUpClient(
 
     console.log('[Auth] Post-signup signin:', { hasSession: !!signInData?.session, error: signInError?.message });
 
+    // If sign in fails (e.g., email not confirmed), still create profile and return success
     if (signInError) {
-      return { 
-        success: true, 
-        needsProfileCreation: true,
-        isNewUser: true,
-        user: authData.user 
-      };
-    }
+      console.log('[Auth] Sign-in failed, still creating profile');
+      
+      const { error: profileError } = await supabase
+        .from('client_profiles')
+        .insert({
+          user_id: authData.user.id,
+          full_name: profileData.fullName,
+          email: email.toLowerCase(),
+          gender: profileData.gender,
+          date_of_birth: profileData.dateOfBirth,
+          religion: profileData.religion,
+          profile_created_for: profileData.profileCreatedFor,
+          country: 'India',
+          country_code: '+91',
+          is_profile_active: true,
+          show_phone_number: false,
+          payment_status: 'free',
+          created_by: 'client',
+        });
 
-    if (signInError) {
+      console.log('[Auth] Profile insert:', { hasError: !!profileError, error: profileError?.message });
+      
+      clearRateLimit(clientRateLimit);
       return { 
         success: true, 
-        needsProfileCreation: true,
+        needsProfileCreation: false,
         isNewUser: true,
         user: authData.user 
       };
