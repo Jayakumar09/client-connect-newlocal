@@ -46,6 +46,8 @@ const getAllowedOrigins = (): string[] => {
     'http://localhost:5173',
     'http://127.0.0.1:8080',
     'http://127.0.0.1:5173',
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
   ];
   
   // Add production domains if configured
@@ -60,10 +62,16 @@ const getAllowedOrigins = (): string[] => {
     `http://${clientDomain}`,
   );
   
-  // Add Cloudflare Pages preview URLs if present
+  // Add Cloudflare Pages preview URLs
   if (process.env.CLOUDFLARE_PAGES_URL) {
     origins.push(process.env.CLOUDFLARE_PAGES_URL);
   }
+  
+  // Add Cloudflare Pages preview domains (hardcoded for now)
+  origins.push(
+    'https://f8051865.client-connect-newlocal.pages.dev',
+    'https://client-connect-newlocal.pages.dev',
+  );
   
   // Add any custom origins from environment
   if (process.env.ALLOWED_ORIGINS) {
