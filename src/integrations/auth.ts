@@ -97,6 +97,11 @@ export async function signUpClient(
     profileCreatedFor: string;
   }
 ): Promise<ClientAuthResult> {
+  if (!supabase) {
+    console.error('[Auth] Supabase client not initialized');
+    return { success: false, error: 'Authentication service not available. Please refresh and try again.' };
+  }
+
   if (isRateLimited(clientRateLimit)) {
     const remaining = getRemainingCooldown(clientRateLimit);
     return { 
@@ -108,6 +113,7 @@ export async function signUpClient(
   recordAttempt(clientRateLimit);
 
   try {
+    console.log('[Auth] Checking for existing profile...');
     const { data: existingProfile } = await supabase
       .from('client_profiles')
       .select('id, email')
@@ -118,10 +124,13 @@ export async function signUpClient(
       return { success: false, error: 'An account with this email already exists. Please sign in instead.' };
     }
 
+    console.log('[Auth] Creating auth user for:', email.toLowerCase());
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.toLowerCase(),
       password,
     });
+
+    console.log('[Auth] Signup response:', { hasUser: !!authData?.user, hasError: !!authError, error: authError?.message });
 
     if (authError) {
       if (authError.message.includes('rate limit') || authError.status === 429) {
@@ -134,10 +143,13 @@ export async function signUpClient(
       return { success: false, error: 'Failed to create account. Please try again.' };
     }
 
+    console.log('[Auth] User created, attempting immediate sign in...');
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: email.toLowerCase(),
       password,
     });
+
+    console.log('[Auth] Post-signup signin:', { hasSession: !!signInData?.session, error: signInError?.message });
 
     if (signInError) {
       return { 
@@ -148,6 +160,16 @@ export async function signUpClient(
       };
     }
 
+    if (signInError) {
+      return { 
+        success: true, 
+        needsProfileCreation: true,
+        isNewUser: true,
+        user: authData.user 
+      };
+    }
+
+    console.log('[Auth] Creating client profile...');
     const { error: profileError } = await supabase
       .from('client_profiles')
       .insert({
@@ -165,6 +187,8 @@ export async function signUpClient(
         payment_status: 'free',
         created_by: 'client',
       });
+
+    console.log('[Auth] Profile insert:', { hasError: !!profileError, error: profileError?.message });
 
     if (profileError) {
       return { 
@@ -192,6 +216,11 @@ export async function signInClient(
   email: string,
   password: string
 ): Promise<ClientAuthResult> {
+  if (!supabase) {
+    console.error('[Auth] Supabase client not initialized - check env vars');
+    return { success: false, error: 'Authentication service not available. Please refresh and try again.' };
+  }
+
   if (isRateLimited(clientRateLimit)) {
     const remaining = getRemainingCooldown(clientRateLimit);
     return { 
@@ -203,10 +232,14 @@ export async function signInClient(
   recordAttempt(clientRateLimit);
 
   try {
+    console.log('[Auth] Attempting sign in for:', email.toLowerCase());
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.toLowerCase(),
       password,
     });
+
+    console.log('[Auth] Sign in response:', { hasData: !!data, hasError: !!error, errorMessage: error?.message });
 
     if (error) {
       if (error.message.includes('rate limit') || error.status === 429) {
@@ -218,11 +251,15 @@ export async function signInClient(
       throw error;
     }
 
+    console.log('[Auth] Sign in successful, user:', data.user?.id);
+
     const { data: profile } = await supabase
       .from('client_profiles')
       .select('id')
       .eq('user_id', data.user?.id)
       .maybeSingle();
+
+    console.log('[Auth] Profile lookup result:', { hasProfile: !!profile });
 
     clearRateLimit(clientRateLimit);
 
@@ -233,6 +270,7 @@ export async function signInClient(
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Login failed';
+    console.error('[Auth] Login error:', message);
     return { success: false, error: message };
   }
 }

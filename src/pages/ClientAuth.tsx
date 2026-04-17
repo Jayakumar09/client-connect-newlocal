@@ -127,11 +127,16 @@ const ClientAuth = () => {
 
   useEffect(() => {
     const checkSession = async () => {
+      console.log('[ClientAuth] Checking session on mount...');
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('[ClientAuth] Session check result:', { hasSession: !!session, hasUser: !!session?.user });
+      
       // Only redirect if session actually exists and is valid
       if (session && session.user) {
+        console.log('[ClientAuth] Session found, checking profile...');
         const isAdmin = session.user.email === "vijayalakshmijayakumar45@gmail.com";
         if (isAdmin) {
+          console.log('[ClientAuth] Admin user, navigating to /dashboard');
           navigate("/dashboard");
         } else {
           const { data: profile } = await supabase
@@ -140,12 +145,18 @@ const ClientAuth = () => {
             .eq("user_id", session.user.id)
             .maybeSingle();
           
+          console.log('[ClientAuth] Profile lookup:', { hasProfile: !!profile });
+          
           if (profile) {
+            console.log('[ClientAuth] Profile exists, navigating to /browse');
             navigate("/browse");
           } else {
+            console.log('[ClientAuth] No profile, navigating to /client-profile');
             navigate("/client-profile");
           }
         }
+      } else {
+        console.log('[ClientAuth] No session - staying on login page');
       }
       // If no session, stay on login page (do nothing)
     };
@@ -229,7 +240,9 @@ const ClientAuth = () => {
     setLoading(true);
 
     try {
+      console.log('[ClientAuth] Calling signInClient for:', email);
       const result = await signInClient(email, password);
+      console.log('[ClientAuth] signInClient result:', result);
 
       if (!result.success) {
         toast.error(result.error || 'Login failed');
@@ -239,13 +252,17 @@ const ClientAuth = () => {
       }
 
       toast.success('Signed in successfully!');
+      console.log('[ClientAuth] Login success, navigating...');
       
       if (result.needsProfileCreation) {
+        console.log('[ClientAuth] Navigating to /client-profile');
         navigate('/client-profile');
       } else {
+        console.log('[ClientAuth] Navigating to /browse');
         navigate('/browse');
       }
     } catch (error) {
+      console.error('[ClientAuth] Login exception:', error);
       toast.error('Login failed. Please try again.');
     } finally {
       setLoading(false);
