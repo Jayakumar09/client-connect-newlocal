@@ -100,9 +100,9 @@ export const AdvancedSearchFilters = ({
   ).length;
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-lg p-3 sm:p-4 mb-3 sm:mb-6 shadow-sm">
+    <div className="bg-white/80 backdrop-blur-sm rounded-lg p-2 sm:p-4 mb-2 sm:mb-6 shadow-sm">
       {/* Basic Search */}
-      <div className="flex flex-col md:flex-row gap-2 sm:gap-4">
+      <div className="flex flex-col sm:flex-row gap-2">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -161,9 +161,9 @@ export const AdvancedSearchFilters = ({
           )}
         </div>
 
-        <CollapsibleContent className="mt-4">
+        <CollapsibleContent className="mt-3 space-y-3">
           {!isPaidUser && SHOW_UPGRADE && (
-            <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+            <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
               <div className="flex items-center gap-2 text-purple-700">
                 <Lock className="h-4 w-4" />
                 <span className="text-sm font-medium">Premium filters require a paid subscription</span>
@@ -178,7 +178,7 @@ export const AdvancedSearchFilters = ({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Caste Filter */}
             <div className="relative">
               <label className="text-sm font-medium text-muted-foreground mb-1 block">Caste</label>

@@ -147,3 +147,8 @@ All colors MUST be HSL.
 .grid {
   contain: layout style;
 }
+
+/* Profile card image face-focused crop */
+.object-center-top {
+  object-position: center top;
+}
