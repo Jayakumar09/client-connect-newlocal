@@ -237,6 +237,12 @@ const Browse = () => {
       />
 
       <div className="container mx-auto px-4 py-6">
+        {/* Dashboard Header */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg border border-pink-100 shadow-sm px-6 py-4 mb-6">
+          <h2 className="text-2xl font-semibold text-pink-700">Dashboard</h2>
+          <p className="text-sm text-muted-foreground mt-1">Browse matching profiles and manage your activity</p>
+        </div>
+
         {/* View Limit Banner */}
         <ViewLimitBanner 
           remainingViews={getRemainingViews()} 
