@@ -100,21 +100,21 @@ export const AdvancedSearchFilters = ({
   ).length;
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 mb-6 shadow-sm">
+    <div className="bg-white/80 backdrop-blur-sm rounded-lg p-3 sm:p-4 mb-3 sm:mb-6 shadow-sm">
       {/* Basic Search */}
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col md:flex-row gap-2 sm:gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by name, location, occupation..."
             value={filters.searchTerm}
             onChange={(e) => updateFilter('searchTerm', e.target.value)}
-            className="pl-10 border-pink-200 focus:ring-pink-500"
+            className="pl-10 border-pink-200 focus:ring-pink-500 text-sm sm:text-base"
           />
         </div>
         <div className="flex gap-2">
           <Select value={filters.gender} onValueChange={(v) => updateFilter('gender', v)}>
-            <SelectTrigger className="w-32 border-pink-200">
+            <SelectTrigger className="w-28 sm:w-32 border-pink-200 text-sm">
               <SelectValue placeholder="Gender" />
             </SelectTrigger>
             <SelectContent>
@@ -124,7 +124,7 @@ export const AdvancedSearchFilters = ({
             </SelectContent>
           </Select>
           <Select value={filters.religion} onValueChange={(v) => updateFilter('religion', v)}>
-            <SelectTrigger className="w-32 border-pink-200">
+            <SelectTrigger className="w-28 sm:w-32 border-pink-200 text-sm">
               <SelectValue placeholder="Religion" />
             </SelectTrigger>
             <SelectContent>

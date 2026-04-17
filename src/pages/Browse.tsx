@@ -236,10 +236,10 @@ const Browse = () => {
         onSignOut={handleSignOut}
       />
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
         {/* Dashboard Header */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg border border-pink-100 shadow-sm px-6 py-4 mb-6">
-          <h2 className="text-2xl font-semibold text-pink-700">Dashboard</h2>
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg border border-pink-100 shadow-sm px-3 sm:px-6 py-3 sm:py-4 mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-semibold text-pink-700">Dashboard</h2>
           <p className="text-sm text-muted-foreground mt-1">Browse matching profiles and manage your activity</p>
         </div>
 
@@ -258,11 +258,11 @@ const Browse = () => {
         />
 
         {/* Results count */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 sm:mb-4">
           <p className="text-sm text-muted-foreground">
-            Showing {displayedProfiles.length} profile{displayedProfiles.length !== 1 ? 's' : ''}
+            {displayedProfiles.length} profile{displayedProfiles.length !== 1 ? 's' : ''}
             {!isPaidUser && filteredProfiles.length > MAX_FREE_VIEWS && (
-              <span className="text-pink-600 ml-2">
+              <span className="text-pink-600 ml-1 sm:ml-2">
                 ({filteredProfiles.length - MAX_FREE_VIEWS} more with premium)
               </span>
             )}
@@ -284,7 +284,7 @@ const Browse = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
               {displayedProfiles.map((profile) => (
                 <ClientProfileCard
                   key={profile.id}
