@@ -59,13 +59,13 @@ const ClientProfileCard = ({ profile, onView }: ClientProfileCardProps) => {
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-white/90 backdrop-blur-sm border-pink-100 flex flex-col">
-      <div className="relative w-full h-24 sm:h-28 md:h-32 lg:h-36 xl:h-40 flex-shrink-0 overflow-hidden bg-gray-100 rounded-t-lg">
-        <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+      <div className="relative w-full h-20 sm:h-24 md:h-28 lg:h-32 flex-shrink-0 overflow-hidden bg-gray-100 rounded-t-lg">
+        <div className="absolute inset-0">
           {profilePhoto ? (
             <img
               src={profilePhoto}
               alt={profile.full_name}
-              className="w-full h-full object-cover object-center"
+              className="w-full h-full object-cover object-position center top"
               loading="lazy"
             />
           ) : (
