@@ -58,20 +58,22 @@ const ClientProfileCard = ({ profile, onView }: ClientProfileCardProps) => {
   const profilePhoto = isValidImageUrl(profile.profile_photo) ? profile.profile_photo : null;
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-white/90 backdrop-blur-sm border-pink-100 h-full flex flex-col">
-      <div className="relative w-full h-36 sm:h-48 flex-shrink-0 overflow-hidden bg-gray-100">
-        {profilePhoto ? (
-          <img
-            src={profilePhoto}
-            alt={profile.full_name}
-            className="w-full h-full object-cover object-center"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
-            <User className="h-16 w-16 sm:h-20 sm:w-20 text-pink-300" />
-          </div>
-        )}
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-white/90 backdrop-blur-sm border-pink-100 flex flex-col">
+      <div className="relative w-full h-24 sm:h-28 md:h-32 lg:h-36 xl:h-40 flex-shrink-0 overflow-hidden bg-gray-100 rounded-t-lg">
+        <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+          {profilePhoto ? (
+            <img
+              src={profilePhoto}
+              alt={profile.full_name}
+              className="w-full h-full object-cover object-center"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
+              <User className="h-10 w-10 sm:h-12 sm:w-12 text-pink-300" />
+            </div>
+          )}
+        </div>
         <div className="absolute top-2 right-2 flex items-center gap-1">
           <ShortlistButton profileUserId={profile.user_id} className="bg-white/80 hover:bg-white" />
           <Badge className="bg-gradient-to-r from-pink-500 to-purple-500 text-white">
