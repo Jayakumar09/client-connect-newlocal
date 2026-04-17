@@ -18,7 +18,8 @@ function getSupabase() {
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
   
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Supabase not configured');
+    console.warn('[ProfileSectionConfig] Supabase not configured, returning empty sections');
+    return null;
   }
   
   return createClient(supabaseUrl, supabaseAnonKey);
@@ -27,6 +28,13 @@ function getSupabase() {
 router.get('/sections', async (_req: Request, res: Response) => {
   try {
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return res.json({ 
+        success: true, 
+        data: [] 
+      });
+    }
     
     const { data, error } = await supabase
       .from('profile_section_config')
@@ -59,6 +67,14 @@ router.get('/sections', async (_req: Request, res: Response) => {
 router.post('/sections', async (req: Request, res: Response) => {
   try {
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Service unavailable' 
+      });
+    }
+    
     const { section_key, section_label, display_order } = req.body;
     
     if (!section_key || !section_label) {
@@ -103,6 +119,14 @@ router.post('/sections', async (req: Request, res: Response) => {
 router.put('/sections/:id', async (req: Request, res: Response) => {
   try {
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Service unavailable' 
+      });
+    }
+    
     const { id } = req.params;
     const { section_label, display_order, is_active } = req.body;
     
@@ -143,6 +167,14 @@ router.put('/sections/:id', async (req: Request, res: Response) => {
 router.delete('/sections/:id', async (req: Request, res: Response) => {
   try {
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Service unavailable' 
+      });
+    }
+    
     const { id } = req.params;
     
     const { error } = await supabase
