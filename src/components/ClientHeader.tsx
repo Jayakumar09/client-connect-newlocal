@@ -1,20 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Heart, LogOut, ArrowLeft, Loader2, MessageSquare, ChevronDown } from "lucide-react";
+import { Heart, LogOut, ArrowLeft, Loader2, MessageSquare, Bell } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { MobileMenuDrawer } from "@/components/MobileMenuDrawer";
-import { BRAND_LOGO, BRAND_NAME } from "@/lib/branding";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-interface SectionItem {
-  key: string;
-  label: string;
-}
+import { BRAND_NAME } from "@/lib/branding";
 
 interface ClientHeaderProps {
   showBackButton?: boolean;
@@ -24,9 +13,6 @@ interface ClientHeaderProps {
   showMyProfileButton?: boolean;
   showLogoutButton?: boolean;
   showChatButton?: boolean;
-  showBackToDashboard?: boolean;
-  sectionJumpItems?: SectionItem[];
-  onSectionJump?: (key: string) => void;
   onSignOut?: () => void;
   loading?: boolean;
 }
@@ -39,9 +25,6 @@ export function ClientHeader({
   showMyProfileButton = false,
   showLogoutButton = false,
   showChatButton = false,
-  showBackToDashboard = false,
-  sectionJumpItems,
-  onSectionJump,
   onSignOut,
   loading = false,
 }: ClientHeaderProps) {
@@ -49,68 +32,65 @@ export function ClientHeader({
 
   if (loading) {
     return (
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-pink-600" />
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+        <div className="flex items-center justify-center h-12">
+          <Loader2 className="h-5 w-5 animate-spin text-pink-500" />
         </div>
       </header>
     );
   }
 
   return (
-    <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+      <div className="flex items-center justify-between h-12 px-3">
+        {/* Left side - Menu/Back + Title */}
+        <div className="flex items-center gap-2 min-w-0">
           <MobileMenuDrawer onSignOut={onSignOut} />
           {showBackButton && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate(-1)}
-              className="flex-shrink-0"
+              className="h-8 w-8 -ml-1"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
-          <img
-            src={BRAND_LOGO}
-            alt={BRAND_NAME}
-            className="w-10 h-10 md:w-12 md:h-12 object-contain flex-shrink-0"
-          />
-          <h1 className="text-lg md:text-xl font-cursive font-semibold bg-gradient-to-r from-pink-600 via-purple-600 to-pink-500 bg-clip-text text-transparent truncate max-w-[180px] sm:max-w-none">
+          <h1 className="text-base font-semibold text-gray-800 truncate">
             {BRAND_NAME}
           </h1>
         </div>
 
-        <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+        {/* Right side - Actions */}
+        <div className="flex items-center gap-1">
           {showInterestsButton && (
             <Button
               onClick={() => navigate("/shortlists")}
-              variant="outline"
-              className="border-pink-200 hover:bg-pink-50 text-xs md:text-sm"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
             >
-              <Heart className="w-4 h-4 mr-1 text-pink-500" />
-              <span className="hidden sm:inline">Interests</span>
+              <Heart className="h-4 w-4 text-pink-500" />
             </Button>
           )}
 
           {showChatButton && (
             <Button
               onClick={() => navigate("/client-messages")}
-              variant="outline"
-              className="border-pink-200 hover:bg-pink-50 text-xs md:text-sm"
-              title="Chat with admin"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="Chat"
             >
-              <MessageSquare className="w-4 h-4 mr-1 text-pink-500" />
-              <span className="hidden sm:inline">Chat</span>
+              <MessageSquare className="h-4 w-4 text-pink-500" />
             </Button>
           )}
 
           {showUpgradeButton && (
             <Button
               onClick={() => navigate("/plans")}
-              variant="default"
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg text-xs md:text-sm"
+              size="sm"
+              className="h-8 bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs px-3"
             >
               Upgrade
             </Button>
@@ -119,61 +99,29 @@ export function ClientHeader({
           {showMyProfileButton && (
             <Button
               onClick={() => navigate("/client-profile")}
-              variant="outline"
-              className="border-pink-200 hover:bg-pink-50 text-xs md:text-sm"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="My Profile"
             >
-              <span className="hidden sm:inline">My Profile</span>
-              <span className="sm:hidden">Profile</span>
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
 
-          {showBackToDashboard && (
-            <div className="flex items-center gap-1">
-              <Button
-                onClick={() => navigate("/browse")}
-                variant="outline"
-                className="border-pink-200 hover:bg-pink-50 text-xs md:text-sm"
-              >
-                <ArrowLeft className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline">Back to Dashboard</span>
-                <span className="sm:hidden">Dashboard</span>
-              </Button>
-              {sectionJumpItems && sectionJumpItems.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="border-pink-200 hover:bg-pink-50 text-xs md:text-sm px-2"
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    {sectionJumpItems.map((item) => (
-                      <DropdownMenuItem
-                        key={item.key}
-                        onClick={() => onSectionJump?.(item.key)}
-                        className="cursor-pointer"
-                      >
-                        {item.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+          {showNotificationBell && (
+            <div className="relative">
+              <NotificationBell />
             </div>
           )}
-
-          {showNotificationBell && <NotificationBell />}
 
           {showLogoutButton && onSignOut && (
             <Button
               onClick={onSignOut}
-              variant="outline"
-              className="border-pink-200 hover:bg-pink-50 text-xs md:text-sm"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
             >
-              <LogOut className="w-4 h-4 mr-1 md:mr-2" />
-              <span className="hidden md:inline">Sign Out</span>
+              <LogOut className="h-4 w-4" />
             </Button>
           )}
         </div>
