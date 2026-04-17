@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Heart, LogOut, ArrowLeft, Loader2, MessageSquare, ChevronDown } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
+import { MobileMenuDrawer } from "@/components/MobileMenuDrawer";
 import { BRAND_LOGO, BRAND_NAME } from "@/lib/branding";
 import {
   DropdownMenu,
@@ -60,6 +61,7 @@ export function ClientHeader({
     <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 md:gap-3 min-w-0">
+          <MobileMenuDrawer onSignOut={onSignOut} />
           {showBackButton && (
             <Button
               variant="ghost"

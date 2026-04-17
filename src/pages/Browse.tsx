@@ -8,6 +8,7 @@ import { Tables } from "@/integrations/supabase/types";
 import ClientProfileCard from "@/components/ClientProfileCard";
 import ClientProfileViewDialog from "@/components/ClientProfileViewDialog";
 import { NotificationBell } from "@/components/NotificationBell";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import AdvancedSearchFilters, { SearchFilters } from "@/components/AdvancedSearchFilters";
 import ViewLimitBanner from "@/components/ViewLimitBanner";
 import { useProfileViews } from "@/hooks/useProfileViews";
@@ -236,7 +237,7 @@ const Browse = () => {
         onSignOut={handleSignOut}
       />
 
-      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 pb-20 md:pb-6">
         {/* Dashboard Header */}
         <div className="bg-white/80 backdrop-blur-sm rounded-lg border border-pink-100 shadow-sm px-3 sm:px-6 py-3 sm:py-4 mb-4 sm:mb-6">
           <h2 className="text-xl sm:text-2xl font-semibold text-pink-700">Dashboard</h2>
@@ -358,6 +359,7 @@ const Browse = () => {
           </DialogContent>
         </Dialog>
         )}
+        <MobileBottomNav />
     </div>
   );
 };
