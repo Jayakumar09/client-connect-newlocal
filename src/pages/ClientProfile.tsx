@@ -74,7 +74,7 @@ type ProfileFormData = z.infer<typeof profileFormSchema>;
 
 const ClientProfile = () => {
   const navigate = useNavigate();
-  const { user, isAdmin, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAdmin, isAuthenticated, loading: authLoading, signOut } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -501,7 +501,7 @@ const ClientProfile = () => {
         showBackToDashboard
         showNotificationBell
         showLogoutButton={!isNewUser}
-        onSignOut={() => navigate('/client-auth')}
+        onSignOut={signOut}
         sectionJumpItems={sectionJumpItems}
         onSectionJump={handleSectionJump}
       />

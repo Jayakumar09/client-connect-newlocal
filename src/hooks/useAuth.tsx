@@ -52,7 +52,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = async () => {
+    // Clear local state first to prevent any race conditions
+    setSession(null);
+    setUser(null);
+    
+    // Sign out from Supabase
     await supabase.auth.signOut();
+    
+    // Clear any local storage items that might persist auth state
+    localStorage.removeItem('supabase.auth.token');
+    sessionStorage.removeItem('supabase.auth.token');
+    
     // Redirect to appropriate login page based on current area
     const redirectUrl = getLogoutRedirectUrl();
     console.log('[Auth] Signing out, redirecting to:', redirectUrl);

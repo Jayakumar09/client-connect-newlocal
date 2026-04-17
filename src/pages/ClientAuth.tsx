@@ -128,7 +128,8 @@ const ClientAuth = () => {
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      // Only redirect if session actually exists and is valid
+      if (session && session.user) {
         const isAdmin = session.user.email === "vijayalakshmijayakumar45@gmail.com";
         if (isAdmin) {
           navigate("/dashboard");
@@ -146,6 +147,7 @@ const ClientAuth = () => {
           }
         }
       }
+      // If no session, stay on login page (do nothing)
     };
     checkSession();
   }, [navigate]);
