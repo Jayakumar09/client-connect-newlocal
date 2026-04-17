@@ -201,8 +201,17 @@ function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
 // Protected route wrapper for client
 function ProtectedClientRoute({ children }: { children: React.ReactNode }) {
   console.log('[Client] ProtectedClientRoute rendering');
-  const { user, loading, isAdmin } = useAuth();
+  const { user, session, loading, isAdmin } = useAuth();
   const location = useLocation();
+  
+  console.log('[Client] Route guard state:', { 
+    loading, 
+    hasUser: !!user, 
+    hasSession: !!session, 
+    isAdmin,
+    userId: user?.id,
+    userEmail: user?.email
+  });
   
   if (loading) {
     return (
@@ -215,14 +224,17 @@ function ProtectedClientRoute({ children }: { children: React.ReactNode }) {
     );
   }
   
-  if (!user) {
+  if (!user || !session) {
+    console.log('[Client] No user/session, redirecting to login');
     return <Navigate to="/client-auth" state={{ from: location }} replace />;
   }
   
   if (isAdmin) {
+    console.log('[Client] Admin user detected, redirecting to admin dashboard');
     return <Navigate to="/admin/dashboard" replace />;
   }
   
+  console.log('[Client] Allowing access to protected route');
   return <>{children}</>;
 }
 

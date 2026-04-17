@@ -128,32 +128,41 @@ const ClientAuth = () => {
   useEffect(() => {
     const checkSession = async () => {
       console.log('[ClientAuth] Checking session on mount...');
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('[ClientAuth] Session check result:', { hasSession: !!session, hasUser: !!session?.user });
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('[ClientAuth] Session check result:', { 
+        hasSession: !!session, 
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+        userEmail: session?.user?.email,
+        error: sessionError?.message
+      });
       
       // Only redirect if session actually exists and is valid
       if (session && session.user) {
         console.log('[ClientAuth] Session found, checking profile...');
         const isAdmin = session.user.email === "vijayalakshmijayakumar45@gmail.com";
+        
+        const { data: profile, error: profileError } = await supabase
+          .from("client_profiles")
+          .select("id")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        
+        console.log('[ClientAuth] Profile lookup:', { 
+          hasProfile: !!profile, 
+          profileId: profile?.id,
+          error: profileError?.message
+        });
+        
         if (isAdmin) {
           console.log('[ClientAuth] Admin user, navigating to /dashboard');
           navigate("/dashboard");
+        } else if (profile) {
+          console.log('[ClientAuth] Profile exists, navigating to /browse');
+          navigate("/browse");
         } else {
-          const { data: profile } = await supabase
-            .from("client_profiles")
-            .select("id")
-            .eq("user_id", session.user.id)
-            .maybeSingle();
-          
-          console.log('[ClientAuth] Profile lookup:', { hasProfile: !!profile });
-          
-          if (profile) {
-            console.log('[ClientAuth] Profile exists, navigating to /browse');
-            navigate("/browse");
-          } else {
-            console.log('[ClientAuth] No profile, navigating to /client-profile');
-            navigate("/client-profile");
-          }
+          console.log('[ClientAuth] No profile, navigating to /client-profile');
+          navigate("/client-profile");
         }
       } else {
         console.log('[ClientAuth] No session - staying on login page');
