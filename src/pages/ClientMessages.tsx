@@ -563,8 +563,6 @@ const ClientMessages = () => {
         showInterestsButton
         showChatButton
         showMyProfileButton
-        showLogoutButton
-        onSignOut={handleSignOut}
       />
 
       <main className="flex-1 container mx-auto px-4 py-4">

@@ -500,8 +500,6 @@ const ClientProfile = () => {
       <ClientHeader
         showBackToDashboard
         showNotificationBell
-        showLogoutButton={!isNewUser}
-        onSignOut={signOut}
         sectionJumpItems={sectionJumpItems}
         onSectionJump={handleSectionJump}
       />
