@@ -44,14 +44,28 @@ const ClientProfileCard = ({ profile, onView }: ClientProfileCardProps) => {
     return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
+  const isValidImageUrl = (url: string | null | undefined): boolean => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const urlObj = new URL(url);
+      const ext = urlObj.pathname.toLowerCase().split('.').pop();
+      return ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext || '');
+    } catch {
+      return false;
+    }
+  };
+
+  const profilePhoto = isValidImageUrl(profile.profile_photo) ? profile.profile_photo : null;
+
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-white/90 backdrop-blur-sm border-pink-100 h-full flex flex-col">
-      <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] flex-shrink-0">
-        {profile.profile_photo ? (
+      <div className="relative w-full h-36 sm:h-48 flex-shrink-0 overflow-hidden bg-gray-100">
+        {profilePhoto ? (
           <img
-            src={profile.profile_photo}
+            src={profilePhoto}
             alt={profile.full_name}
             className="w-full h-full object-cover object-center"
+            loading="lazy"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
