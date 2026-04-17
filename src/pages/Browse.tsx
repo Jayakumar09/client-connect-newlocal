@@ -2,17 +2,15 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, Crown, Heart, Eye, Lock, MessageSquare } from "lucide-react";
+import { Loader2, Crown, Heart, Eye, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Tables } from "@/integrations/supabase/types";
 import ClientProfileCard from "@/components/ClientProfileCard";
 import ClientProfileViewDialog from "@/components/ClientProfileViewDialog";
-import { NotificationBell } from "@/components/NotificationBell";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
-import AdvancedSearchFilters, { SearchFilters } from "@/components/AdvancedSearchFilters";
 import ViewLimitBanner from "@/components/ViewLimitBanner";
 import { useProfileViews } from "@/hooks/useProfileViews";
 import { ClientHeader } from "@/components/ClientHeader";
+import AdvancedSearchFilters, { SearchFilters } from "@/components/AdvancedSearchFilters";
 import {
   Dialog,
   DialogContent,
@@ -21,10 +19,18 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+// Mobile components based on reference design
+import { MobileHeader } from "@/components/mobile/MobileHeader";
+import { MobileDrawer } from "@/components/mobile/MobileDrawer";
+import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
+import { SearchFiltersMobile } from "@/components/mobile/SearchFiltersMobile";
+import { ProfileCardMobile } from "@/components/mobile/ProfileCardMobile";
+
 type ClientProfile = Tables<"client_profiles"> & {
   match_status?: 'not_matched' | 'matched' | null;
   matched_with_id?: string | null;
   match_remarks?: string | null;
+  profile_id?: string;
 };
 
 const SHOW_UPGRADE_UI = import.meta.env.VITE_ENABLE_UPGRADE === 'true';
@@ -37,6 +43,8 @@ const Browse = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [userName, setUserName] = useState<string>("User");
   const [filters, setFilters] = useState<SearchFilters>({
     searchTerm: '',
     gender: 'all',
@@ -70,6 +78,12 @@ const Browse = () => {
       return;
     }
     setCurrentUserId(session.user.id);
+    
+    if (session.user.user_metadata?.full_name) {
+      setUserName(session.user.user_metadata.full_name);
+    } else if (session.user.email) {
+      setUserName(session.user.email.split('@')[0]);
+    }
     
     const isAdmin = session.user.email === "vijayalakshmijayakumar45@gmail.com";
     if (isAdmin) {
@@ -112,7 +126,6 @@ const Browse = () => {
   const filteredProfiles = useMemo(() => {
     let filtered = profiles.filter(p => p.user_id !== currentUserId);
 
-    // Search term filter
     if (filters.searchTerm) {
       const term = filters.searchTerm.toLowerCase();
       filtered = filtered.filter(p =>
@@ -124,22 +137,18 @@ const Browse = () => {
       );
     }
 
-    // Gender filter
     if (filters.gender !== "all") {
       filtered = filtered.filter(p => p.gender === filters.gender);
     }
 
-    // Religion filter
     if (filters.religion !== "all") {
       filtered = filtered.filter(p => p.religion === filters.religion);
     }
 
-    // Marital status filter
     if (filters.maritalStatus !== "all") {
       filtered = filtered.filter(p => p.marital_status === filters.maritalStatus);
     }
 
-    // Age range filter
     if (filters.ageMin || filters.ageMax) {
       filtered = filtered.filter(p => {
         const age = calculateAge(p.date_of_birth);
@@ -149,30 +158,25 @@ const Browse = () => {
       });
     }
 
-    // Premium filters (only for paid users)
     if (isPaidUser) {
-      // Caste filter
       if (filters.caste && filters.caste !== 'all') {
         filtered = filtered.filter(p => 
           p.caste?.toLowerCase().includes(filters.caste.toLowerCase())
         );
       }
 
-      // City filter
       if (filters.city) {
         filtered = filtered.filter(p => 
           p.city?.toLowerCase().includes(filters.city.toLowerCase())
         );
       }
 
-      // Education filter
       if (filters.education && filters.education !== 'all') {
         filtered = filtered.filter(p => 
           p.education?.toLowerCase().includes(filters.education.toLowerCase())
         );
       }
 
-      // Income filter
       if (filters.income && filters.income !== 'all') {
         filtered = filtered.filter(p => 
           p.annual_income?.toLowerCase().includes(filters.income.toLowerCase())
@@ -183,7 +187,6 @@ const Browse = () => {
     return filtered;
   }, [profiles, filters, currentUserId, isPaidUser]);
 
-  // For non-paid users, limit visible profiles to first 10
   const displayedProfiles = useMemo(() => {
     if (isPaidUser) return filteredProfiles;
     return filteredProfiles.slice(0, MAX_FREE_VIEWS);
@@ -200,13 +203,11 @@ const Browse = () => {
   };
 
   const handleViewProfile = async (profile: ClientProfile) => {
-    // Check if user can view this profile
     if (!canViewProfile(profile.user_id)) {
       setLimitDialogOpen(true);
       return;
     }
 
-    // Record the view
     const canProceed = await recordProfileView(profile.user_id);
     if (!canProceed) {
       setLimitDialogOpen(true);
@@ -225,7 +226,139 @@ const Browse = () => {
     );
   }
 
-  return (
+  // Mobile Layout (< 768px)
+  const MobileLayout = () => (
+    <div className="min-h-screen bg-[#fdf4fa]">
+      <MobileHeader onMenuOpen={() => setDrawerOpen(true)} />
+      <MobileDrawer 
+        open={drawerOpen} 
+        onClose={() => setDrawerOpen(false)}
+        userName={userName}
+      />
+
+      <main className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-3 pb-[110px] pt-4">
+        {/* Dashboard Header */}
+        <section className="rounded-[24px] border border-brand-100 bg-white p-4 shadow-soft">
+          <h1 className="text-[22px] font-bold text-brand-700">Dashboard</h1>
+          <p className="mt-2 text-lg text-slate-500">Browse matching profiles and manage your activity</p>
+        </section>
+
+        {/* View Limit Banner - Mobile */}
+        <ViewLimitBanner 
+          remainingViews={getRemainingViews()} 
+          maxViews={MAX_FREE_VIEWS}
+          isPaidUser={isPaidUser}
+        />
+
+        {/* Search Filters - Mobile */}
+        <SearchFiltersMobile
+          searchTerm={filters.searchTerm}
+          onSearchChange={(value) => setFilters({ ...filters, searchTerm: value })}
+          gender={filters.gender}
+          onGenderChange={(value) => setFilters({ ...filters, gender: value })}
+          religion={filters.religion}
+          onReligionChange={(value) => setFilters({ ...filters, religion: value })}
+          isPaidUser={isPaidUser}
+          onUpgradeClick={() => navigate('/plans')}
+        />
+
+        {/* Results count - Mobile */}
+        <div className="space-y-1 text-slate-600">
+          <p className="text-[18px] font-medium">{displayedProfiles.length} profile{displayedProfiles.length !== 1 ? 's' : ''}</p>
+          {!isPaidUser && (
+            <div className="flex items-center gap-2 text-[18px]">
+              <Eye size={18} />
+              <span>{getRemainingViews()} views left today</span>
+            </div>
+          )}
+        </div>
+
+        {/* Profile Grid - Mobile */}
+        {displayedProfiles.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-lg text-muted-foreground">
+              {profiles.length === 0 ? "No profiles available yet" : "No profiles match your search criteria"}
+            </p>
+          </div>
+        ) : (
+          <section className="space-y-4">
+            {displayedProfiles.map((profile) => (
+              <ProfileCardMobile
+                key={profile.id}
+                profile={profile}
+                onView={handleViewProfile}
+              />
+            ))}
+
+            {SHOW_UPGRADE_UI && !isPaidUser && filteredProfiles.length > MAX_FREE_VIEWS && (
+              <div className="rounded-[24px] border border-brand-100 bg-white p-4 text-center shadow-soft">
+                <Lock className="mx-auto h-6 w-6 text-brand-500" />
+                <p className="mt-2 font-semibold text-brand-700">
+                  {filteredProfiles.length - MAX_FREE_VIEWS} more profiles available
+                </p>
+                <Button
+                  onClick={() => navigate('/plans')}
+                  className="mt-3 w-full bg-gradient-to-r from-pink-500 to-purple-500"
+                >
+                  <Crown className="h-4 w-4 mr-2" />
+                  Unlock All Profiles
+                </Button>
+              </div>
+            )}
+          </section>
+        )}
+      </main>
+
+      <MobileBottomNav />
+
+      {/* View Dialog */}
+      <ClientProfileViewDialog
+        profile={selectedProfile}
+        open={viewDialogOpen}
+        onClose={() => setViewDialogOpen(false)}
+      />
+
+      {/* Limit Reached Dialog - Mobile */}
+      {SHOW_UPGRADE_UI && (
+        <Dialog open={limitDialogOpen} onOpenChange={setLimitDialogOpen}>
+          <DialogContent className="mx-4 max-w-md rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-orange-600">
+                <Lock className="h-5 w-5" />
+                Daily View Limit Reached
+              </DialogTitle>
+              <DialogDescription className="text-left">
+                You've reached your daily limit of {MAX_FREE_VIEWS} profile views. 
+                Upgrade to a premium plan for unlimited profile views and advanced search filters.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-3 mt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setLimitDialogOpen(false)}
+                className="flex-1 rounded-xl"
+              >
+                Maybe Later
+              </Button>
+              <Button 
+                onClick={() => {
+                  setLimitDialogOpen(false);
+                  navigate('/plans');
+                }}
+                className="flex-1 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500"
+              >
+                <Crown className="h-4 w-4 mr-2" />
+                Upgrade
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+
+  // Desktop Layout (>= 768px)
+  const DesktopLayout = () => (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
       <ClientHeader
         showUpgradeButton={SHOW_UPGRADE_UI}
@@ -233,33 +366,33 @@ const Browse = () => {
         onSignOut={handleSignOut}
       />
 
-      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 pb-24 md:pb-6">
-        {/* Dashboard Header */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg border border-pink-100 shadow-sm px-3 sm:px-6 py-3 sm:py-4 mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-semibold text-pink-700">Dashboard</h2>
+      <div className="container mx-auto px-4 py-6">
+        {/* Dashboard Header - Desktop */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg border border-pink-100 shadow-sm px-6 py-4 mb-6">
+          <h2 className="text-2xl font-semibold text-pink-700">Dashboard</h2>
           <p className="text-sm text-muted-foreground mt-1">Browse matching profiles and manage your activity</p>
         </div>
 
-        {/* View Limit Banner */}
+        {/* View Limit Banner - Desktop */}
         <ViewLimitBanner 
           remainingViews={getRemainingViews()} 
           maxViews={MAX_FREE_VIEWS}
           isPaidUser={isPaidUser}
         />
 
-        {/* Advanced Filters */}
+        {/* Advanced Filters - Desktop */}
         <AdvancedSearchFilters 
           isPaidUser={isPaidUser}
           onFiltersChange={setFilters}
           onUpgradeClick={() => navigate('/plans')}
         />
 
-        {/* Results count */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 sm:mb-4">
+        {/* Results count - Desktop */}
+        <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">
             {displayedProfiles.length} profile{displayedProfiles.length !== 1 ? 's' : ''}
             {!isPaidUser && filteredProfiles.length > MAX_FREE_VIEWS && (
-              <span className="text-pink-600 ml-1 sm:ml-2">
+              <span className="text-pink-600 ml-2">
                 ({filteredProfiles.length - MAX_FREE_VIEWS} more with premium)
               </span>
             )}
@@ -272,7 +405,7 @@ const Browse = () => {
           )}
         </div>
 
-        {/* Profile Grid */}
+        {/* Profile Grid - Desktop */}
         {displayedProfiles.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-lg text-muted-foreground">
@@ -281,7 +414,7 @@ const Browse = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {displayedProfiles.map((profile) => (
                 <ClientProfileCard
                   key={profile.id}
@@ -291,7 +424,6 @@ const Browse = () => {
               ))}
             </div>
 
-            {/* Show locked profiles indicator for free users */}
             {SHOW_UPGRADE_UI && !isPaidUser && filteredProfiles.length > MAX_FREE_VIEWS && (
               <div className="mt-8 text-center">
                 <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-100 to-pink-100 px-6 py-4 rounded-lg border border-purple-200">
@@ -319,8 +451,8 @@ const Browse = () => {
         onClose={() => setViewDialogOpen(false)}
       />
 
-{/* Limit Reached Dialog - only show if upgrade UI is enabled */}
-        {SHOW_UPGRADE_UI && (
+      {/* Limit Reached Dialog - Desktop */}
+      {SHOW_UPGRADE_UI && (
         <Dialog open={limitDialogOpen} onOpenChange={setLimitDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -354,9 +486,19 @@ const Browse = () => {
             </div>
           </DialogContent>
         </Dialog>
-        )}
-        <MobileBottomNav />
+      )}
     </div>
+  );
+
+  return (
+    <>
+      <div className="md:hidden">
+        <MobileLayout />
+      </div>
+      <div className="hidden md:block">
+        <DesktopLayout />
+      </div>
+    </>
   );
 };
 

@@ -63,6 +63,21 @@ export default {
         "surface-1": "hsl(var(--surface-1))",
         "surface-2": "hsl(var(--surface-2))",
         "surface-3": "hsl(var(--surface-3))",
+        brand: {
+          50: '#fff1f8',
+          100: '#ffe4f2',
+          200: '#ffc7e3',
+          300: '#ff9fd0',
+          400: '#ff69b4',
+          500: '#e83e8c',
+          600: '#cc2f78',
+          700: '#ab2665',
+          800: '#8d2456',
+          900: '#76224b',
+        },
+      },
+      boxShadow: {
+        soft: '0 8px 24px rgba(232, 62, 140, 0.10)',
       },
       borderRadius: {
         lg: "var(--radius)",
