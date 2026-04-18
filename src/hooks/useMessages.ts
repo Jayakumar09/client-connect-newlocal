@@ -200,9 +200,14 @@ export const useMessages = () => {
 
   const subscribeToMessages = useCallback((partnerId: string) => {
     if (!currentUserId) return () => {};
+    const channelName = `messages:${currentUserId}:${partnerId}`;
+
+    // Remove any existing channel with the same topic to avoid adding handlers after subscribe
+    const existing = supabase.getChannels().find(c => c.topic === channelName);
+    if (existing) supabase.removeChannel(existing);
 
     const channel = supabase
-      .channel(`messages:${currentUserId}:${partnerId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {

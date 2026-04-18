@@ -43,7 +43,13 @@ export const useTypingIndicator = (currentUserId: string | null, partnerId: stri
     if (!currentUserId || !partnerId) return;
 
     const roomId = [currentUserId, partnerId].sort().join(':');
-    const channel = supabase.channel(`typing:${roomId}`);
+    const channelName = `typing:${roomId}`;
+
+    // Remove any existing channel with same topic to avoid re-registering presence handlers
+    const existing = supabase.getChannels().find(c => c.topic === channelName);
+    if (existing) supabase.removeChannel(existing);
+
+    const channel = supabase.channel(channelName);
     channelRef.current = channel;
 
     channel

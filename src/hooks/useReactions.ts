@@ -54,8 +54,14 @@ export const useReactions = (messageIds: string[]) => {
   useEffect(() => {
     if (messageIds.length === 0) return;
 
+    const channelName = `reaction-changes-${currentUserId ?? 'anon'}`;
+
+    // Remove existing channel with same topic to avoid adding callbacks after subscribe
+    const existing = supabase.getChannels().find(c => c.topic === channelName);
+    if (existing) supabase.removeChannel(existing);
+
     const channel = supabase
-      .channel('reaction-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
