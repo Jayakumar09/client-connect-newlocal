@@ -16,27 +16,40 @@ async function runMigration() {
   console.log(`${LOG_PREFIX} Starting Profile ID migration...`);
   console.log('='.repeat(50));
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   const dbPassword = process.env.DB_PASSWORD;
+  const allowSelfSignedCert = process.env.DB_SSL_REJECT_UNAUTHORIZED?.toLowerCase() === 'false';
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.error(`${LOG_PREFIX} ERROR: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.`);
+  const missingVars: string[] = [];
+  if (!supabaseUrl) missingVars.push('SUPABASE_URL');
+  if (!serviceRoleKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
+  if (!dbPassword) missingVars.push('DB_PASSWORD');
+
+  if (missingVars.length > 0) {
+    console.error(`${LOG_PREFIX} ERROR: Missing required environment variables: ${missingVars.join(', ')}`);
+    console.error(`${LOG_PREFIX} Please ensure all required variables are set in your .env file.`);
     process.exit(1);
   }
 
-  if (!dbPassword) {
-    console.error(`${LOG_PREFIX} ERROR: Missing DB_PASSWORD environment variable.`);
-    console.error(`${LOG_PREFIX} Please set DB_PASSWORD in your .env file.`);
-    process.exit(1);
-  }
-
-  const projectRef = supabaseUrl.match(/https:\/\/([a-z0-9]+)\.supabase/)?.[1];
+  const urlPattern = /^https:\/\/([^.]+)\.supabase\.co$/i;
+  const urlMatch = supabaseUrl.match(urlPattern);
   
-  if (!projectRef) {
-    console.error(`${LOG_PREFIX} ERROR: Could not parse Supabase project reference from URL.`);
+  if (!urlMatch) {
+    console.error(`${LOG_PREFIX} ERROR: Invalid SUPABASE_URL format.`);
+    console.error(`${LOG_PREFIX} Expected format: https://<project-ref>.supabase.co`);
+    console.error(`${LOG_PREFIX} Received: ${supabaseUrl}`);
     process.exit(1);
   }
+
+  const projectRef = urlMatch[1];
+  
+  if (!projectRef || projectRef.length < 1) {
+    console.error(`${LOG_PREFIX} ERROR: Could not extract project reference from SUPABASE_URL.`);
+    process.exit(1);
+  }
+
+  console.log(`${LOG_PREFIX} Validated environment variables for project: ${projectRef}`);
 
   const connectionString = `postgresql://postgres:${dbPassword}@db.${projectRef}.supabase.co:5432/postgres`;
   
@@ -46,17 +59,26 @@ async function runMigration() {
   try {
     pool = new Pool({ 
       connectionString,
-      ssl: { rejectUnauthorized: false }
+      ssl: allowSelfSignedCert ? { rejectUnauthorized: false } : true
     });
     
     await pool.query('SELECT 1');
     console.log(`${LOG_PREFIX} Connected to Supabase PostgreSQL`);
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    console.error(`${LOG_PREFIX} ERROR: Could not connect to Supabase.`);
+    console.error(`${LOG_PREFIX} ERROR: Could not connect to Supabase database.`);
     console.error(`${LOG_PREFIX} Error: ${errorMessage}`);
-    console.error(`${LOG_PREFIX} Note: Direct PostgreSQL access may be disabled on Supabase free tier.`);
-    console.error(`${LOG_PREFIX} Please run the SQL manually in Supabase Dashboard SQL Editor.`);
+    
+    if (errorMessage.includes('ECONNREFUSED')) {
+      console.error(`${LOG_PREFIX} Action: Check if your Supabase project is running and direct database access is enabled.`);
+      console.error(`${LOG_PREFIX} Note: Direct PostgreSQL access may be disabled on Supabase free tier.`);
+    } else if (errorMessage.includes('SSL')) {
+      console.error(`${LOG_PREFIX} Action: Try setting DB_SSL_REJECT_UNAUTHORIZED=false in .env if using self-signed certificates.`);
+    } else if (errorMessage.includes('authentication')) {
+      console.error(`${LOG_PREFIX} Action: Verify DB_PASSWORD is correct for the postgres user.`);
+    }
+    
+    console.error(`${LOG_PREFIX} Alternative: Run the SQL manually in Supabase Dashboard SQL Editor.`);
     process.exit(1);
   }
 
