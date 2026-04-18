@@ -140,9 +140,18 @@ export const NotificationBell = () => {
     fetchNotifications();
     fetchPreferences();
     
-    // Subscribe to realtime notifications
+    // Subscribe to realtime notifications using a unique channel name
+    // to avoid adding callbacks to a channel that may already be subscribed
+    const channelName = `notifications-channel-${currentUserId ?? 'guest'}`;
+
+    // Remove any existing channel with the same name before creating a new one
+    const existing = supabase.getChannels().find(c => c.topic === channelName);
+    if (existing) {
+      supabase.removeChannel(existing);
+    }
+
     const channel = supabase
-      .channel('notifications-channel')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
