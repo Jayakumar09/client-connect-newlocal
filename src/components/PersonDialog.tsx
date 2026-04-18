@@ -27,7 +27,7 @@ const personSchema = z.object({
   phoneno: z.string()
     .trim()
     .min(1, { message: "Phone number is required" })
-    .regex(/^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/, { message: "Invalid phone number format. Use digits, +, -, spaces, or parentheses" }),
+    .regex(/^[+]?[()]?[0-9]{1,4}[)]?[-\s.]?[()]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/, { message: "Invalid phone number format. Use digits, +, -, spaces, or parentheses" }),
   comments: z.string().max(1000, { message: "Comments must be less than 1000 characters" }).optional(),
   paymentStatus: z.enum(['paid', 'non_paid', 'free']),
 });

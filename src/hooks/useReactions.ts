@@ -74,32 +74,6 @@ export const useReactions = (messageIds: string[]) => {
     };
   }, [messageIds, fetchReactions]);
 
-  const addReaction = useCallback(async (messageId: string, emoji: string) => {
-    if (!currentUserId) return;
-
-    try {
-      const { error } = await supabase
-        .from('message_reactions')
-        .insert({
-          message_id: messageId,
-          user_id: currentUserId,
-          emoji
-        });
-
-      if (error) {
-        if (error.code === '23505') {
-          // Unique constraint violation - remove reaction instead
-          await removeReaction(messageId, emoji);
-        } else {
-          throw error;
-        }
-      }
-    } catch (error) {
-      console.error('Error adding reaction:', error);
-      toast.error('Failed to add reaction');
-    }
-  }, [currentUserId]);
-
   const removeReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!currentUserId) return;
 
@@ -117,6 +91,31 @@ export const useReactions = (messageIds: string[]) => {
       toast.error('Failed to remove reaction');
     }
   }, [currentUserId]);
+
+  const addReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!currentUserId) return;
+
+    try {
+      const { error } = await supabase
+        .from('message_reactions')
+        .insert({
+          message_id: messageId,
+          user_id: currentUserId,
+          emoji
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          await removeReaction(messageId, emoji);
+        } else {
+          throw error;
+        }
+      }
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+      toast.error('Failed to add reaction');
+    }
+  }, [currentUserId, removeReaction]);
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     const messageReactions = reactions.get(messageId) || [];

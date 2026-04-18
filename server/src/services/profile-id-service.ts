@@ -115,7 +115,7 @@ export class ProfileIdService {
     return data;
   }
 
-  async getRecordByProfileId(profileId: string): Promise<{ type: 'person' | 'client_profile'; record: any } | null> {
+  async getRecordByProfileId(profileId: string): Promise<{ type: 'person' | 'client_profile'; record: unknown } | null> {
     const person = await this.getPersonByProfileId(profileId).catch(() => null);
     if (person) {
       return { type: 'person', record: person };

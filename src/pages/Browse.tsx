@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Loader2, Crown, Heart, Eye, Lock } from "lucide-react";
@@ -67,11 +67,25 @@ const Browse = () => {
     loading: viewsLoading 
   } = useProfileViews();
 
-  useEffect(() => {
-    checkAuthAndFetch();
-  }, [navigate]);
+  const fetchProfiles = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("client_profiles")
+        .select("*")
+        .eq("is_profile_active", true)
+        .order("created_at", { ascending: false });
 
-  const checkAuthAndFetch = async () => {
+      if (error) throw error;
+      setProfiles(data || []);
+    } catch (error: unknown) {
+      console.error("Error fetching profiles:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to load profiles");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const checkAuthAndFetch = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       navigate("/client-auth");
@@ -92,25 +106,11 @@ const Browse = () => {
     }
     
     await fetchProfiles();
-  };
+  }, [fetchProfiles, navigate]);
 
-  const fetchProfiles = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("client_profiles")
-        .select("*")
-        .eq("is_profile_active", true)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setProfiles(data || []);
-    } catch (error: any) {
-      console.error("Error fetching profiles:", error);
-      toast.error("Failed to load profiles");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    void checkAuthAndFetch();
+  }, [checkAuthAndFetch]);
 
   const calculateAge = (dateOfBirth: string) => {
     const today = new Date();

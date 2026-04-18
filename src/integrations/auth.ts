@@ -13,13 +13,13 @@ interface RateLimitState {
   blockedUntil: number;
 }
 
-let clientRateLimit: RateLimitState = {
+const clientRateLimit: RateLimitState = {
   lastAttempt: 0,
   attempts: 0,
   blockedUntil: 0,
 };
 
-let adminRateLimit: RateLimitState = {
+const adminRateLimit: RateLimitState = {
   lastAttempt: 0,
   attempts: 0,
   blockedUntil: 0,

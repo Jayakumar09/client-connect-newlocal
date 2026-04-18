@@ -12,13 +12,21 @@ import { useBlockReport } from "@/hooks/useBlockReport";
 import ClientProfileViewDialog from "@/components/ClientProfileViewDialog";
 import InterestsPanel from "@/components/InterestsPanel";
 import { ClientHeader } from "@/components/ClientHeader";
+import type { Tables } from "@/integrations/supabase/types";
+
+type ClientProfile = Tables<"client_profiles"> & {
+  profile_id?: string | null;
+  match_status?: 'not_matched' | 'matched' | null;
+  matched_with_id?: string | null;
+  match_remarks?: string | null;
+};
 
 const Shortlists = () => {
   const navigate = useNavigate();
   const { shortlistedProfiles, loading: shortlistLoading, removeFromShortlist, fetchShortlist } = useShortlist();
   const { blockedIds, unblockUser, fetchBlockedUsers } = useBlockReport();
-  const [blockedProfiles, setBlockedProfiles] = useState<any[]>([]);
-  const [selectedProfile, setSelectedProfile] = useState<any>(null);
+  const [blockedProfiles, setBlockedProfiles] = useState<ClientProfile[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<ClientProfile | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
 
   useEffect(() => {

@@ -16,6 +16,10 @@ import EmojiPicker from "@/components/EmojiPicker";
 import { toast } from "sonner";
 import { formatChatPartnerName } from "@/lib/chat-utils";
 
+interface MessageError {
+  message?: string;
+}
+
 interface Conversation {
   partnerId: string;
   partnerName: string;
@@ -326,9 +330,9 @@ const ClientMessages = () => {
       setFileInputKey(k => k + 1);
       await fetchMessages(selectedPartner.partnerId);
       await fetchConversations();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[ClientMessages] Error sending message:", error);
-      const errorMessage = error?.message || 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[ClientMessages] Error message for toast:', errorMessage);
       
       if (errorMessage.includes('Bucket not found')) {
@@ -444,9 +448,9 @@ const ClientMessages = () => {
       setRecordingDuration(0);
       await fetchMessages(selectedPartner.partnerId);
       await fetchConversations();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[ClientMessages] Error sending voice message:", error);
-      const errorMessage = error?.message || 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       if (errorMessage.includes('Bucket not found')) {
         toast.error("Storage not configured. Please contact admin.");
       } else {

@@ -50,7 +50,7 @@ interface BackupLogsRow {
   backup_date: string;
   file_name: string;
   file_size: number;
-  status: 'SUCCESS' | 'FAILED' | 'completed' | 'failed' | 'in_progress';
+  status: 'SUCCESS' | 'FAILED' | 'completed' | 'failed' | 'in_progress' | 'deleted_by_retention';
   type: string;
   created_at: string;
   started_at?: string;
@@ -63,6 +63,23 @@ interface BackupLogsRow {
   file_count?: number;
   backup_size?: number;
 }
+
+type BackupLogInsertPayload = {
+  backup_date: string;
+  file_name: string;
+  file_size: number;
+  status: BackupLogEntry['status'];
+  type: BackupLogEntry['type'];
+  drive_folder_id: string | null;
+  drive_folder_name?: string;
+  created_by: string;
+  completed_at: string | null;
+  error_message: string | null;
+};
+
+type BackupLogUpdatePayload = Partial<BackupLogsRow> & {
+  status?: BackupLogsRow['status'] | 'deleted_by_retention';
+};
 
 export class BackupRetentionService {
   private supabase: SupabaseClient | null = null;
@@ -121,20 +138,22 @@ export class BackupRetentionService {
 
   async logBackupEntry(entry: Omit<BackupLogEntry, 'id' | 'created_at'>): Promise<string | null> {
     try {
+      const payload: BackupLogInsertPayload = {
+        backup_date: entry.backup_date,
+        file_name: entry.file_name,
+        file_size: entry.file_size,
+        status: entry.status,
+        type: entry.type,
+        drive_folder_id: entry.drive_folder_id,
+        drive_folder_name: entry.drive_folder_name,
+        created_by: entry.created_by || 'system',
+        completed_at: entry.completed_at || null,
+        error_message: entry.error_message || null
+      };
+
       const { data, error } = await this.getSupabase()
         .from('backup_logs')
-        .insert({
-          backup_date: entry.backup_date,
-          file_name: entry.file_name,
-          file_size: entry.file_size,
-          status: entry.status,
-          type: entry.type,
-          drive_folder_id: entry.drive_folder_id,
-          drive_folder_name: entry.drive_folder_name,
-          created_by: entry.created_by || 'system',
-          completed_at: entry.completed_at || null,
-          error_message: entry.error_message || null
-        } as any)
+        .insert(payload as never)
         .select('id')
         .single();
 
@@ -152,9 +171,9 @@ export class BackupRetentionService {
 
   async updateBackupLog(id: string, updates: Partial<BackupLogsRow>): Promise<boolean> {
     try {
-      const { error } = await this.supabase
+      const { error } = await this.getSupabase()
         .from('backup_logs')
-        .update(updates as any)
+        .update(updates as BackupLogUpdatePayload as never)
         .eq('id', id);
 
       if (error) {
@@ -170,7 +189,7 @@ export class BackupRetentionService {
 
   async getSuccessfulBackups(limit?: number): Promise<BackupLogsRow[]> {
     try {
-      let query = this.supabase
+      let query = this.getSupabase()
         .from('backup_logs')
         .select('*')
         .in('status', ['SUCCESS', 'completed'])
@@ -405,7 +424,7 @@ export class BackupRetentionService {
           await this.updateBackupLog(backup.id, {
             status: 'deleted_by_retention',
             retention_deleted: 1
-          } as any);
+          });
         } else {
           result.errors.push(...deleteResult.errors);
         }

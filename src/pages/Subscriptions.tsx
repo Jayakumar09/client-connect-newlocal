@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,11 +50,39 @@ const Subscriptions = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 
-  useEffect(() => {
-    checkAuthAndFetch();
+  const fetchSubscriptions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: subs, error } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const userIds = [...new Set(subs?.map(s => s.user_id) || [])];
+      const { data: profiles } = await supabase
+        .from("client_profiles")
+        .select("user_id, full_name, phone_number")
+        .in("user_id", userIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      
+      const enrichedSubs: Subscription[] = subs?.map(s => ({
+        ...s,
+        client_profiles: profileMap.get(s.user_id) || undefined
+      })) || [];
+
+      setSubscriptions(enrichedSubs);
+    } catch (error) {
+      console.error("Error fetching subscriptions:", error);
+      toast.error("Failed to load subscriptions");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const checkAuthAndFetch = async () => {
+  const checkAuthAndFetch = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       navigate("/auth");
@@ -76,40 +104,11 @@ const Subscriptions = () => {
     }
 
     await fetchSubscriptions();
-  };
+  }, [fetchSubscriptions, navigate]);
 
-  const fetchSubscriptions = async () => {
-    setLoading(true);
-    try {
-      const { data: subs, error } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      // Fetch client profiles for all subscriptions
-      const userIds = [...new Set(subs?.map(s => s.user_id) || [])];
-      const { data: profiles } = await supabase
-        .from("client_profiles")
-        .select("user_id, full_name, phone_number")
-        .in("user_id", userIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-      
-      const enrichedSubs: Subscription[] = subs?.map(s => ({
-        ...s,
-        client_profiles: profileMap.get(s.user_id) || undefined
-      })) || [];
-
-      setSubscriptions(enrichedSubs);
-    } catch (error) {
-      console.error("Error fetching subscriptions:", error);
-      toast.error("Failed to load subscriptions");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    void checkAuthAndFetch();
+  }, [checkAuthAndFetch]);
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {

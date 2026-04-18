@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -105,23 +105,7 @@ const ClientDashboard = () => {
     return getProfileCompletionBreakdown(profile);
   })();
 
-  useEffect(() => {
-    if (authLoading) return;
-    
-    if (!isAuthenticated) {
-      navigate('/client-auth');
-      return;
-    }
-    
-    if (isAdmin) {
-      navigate('/dashboard');
-      return;
-    }
-    
-    fetchProfile();
-  }, [authLoading, isAuthenticated, isAdmin, navigate]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setError(null);
       if (!user) return;
@@ -158,7 +142,23 @@ const ClientDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate, user]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    
+    if (!isAuthenticated) {
+      navigate('/client-auth');
+      return;
+    }
+    
+    if (isAdmin) {
+      navigate('/dashboard');
+      return;
+    }
+    
+    void fetchProfile();
+  }, [authLoading, fetchProfile, isAuthenticated, isAdmin, navigate]);
 
   const handleProfilePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

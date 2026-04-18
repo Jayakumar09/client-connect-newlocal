@@ -1,11 +1,12 @@
 import { useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { User, Phone, Mail, MapPin, Briefcase, GraduationCap, Heart, Users, Star, Eye, Download, MessageSquare, Ban, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { User, Phone, MapPin, Briefcase, Heart, Users, Star, Eye, Download, MessageSquare, Ban, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,7 +83,7 @@ const ClientProfileViewDialog = ({ profile, open, onClose, onMarkMatched }: Clie
     return value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const Section = ({ title, icon: Icon, children }: { title: string; icon: any; children: React.ReactNode }) => (
+  const Section = ({ title, icon: Icon, children }: { title: string; icon: LucideIcon; children: React.ReactNode }) => (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Icon className="h-5 w-5 text-pink-500" />

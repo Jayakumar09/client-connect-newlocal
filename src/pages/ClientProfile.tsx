@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +23,13 @@ type ClientProfile = Tables<"client_profiles"> & {
   matched_with_id?: string | null;
   match_remarks?: string | null;
 };
+
+const defaultSections = [
+  { key: 'personal_details', label: 'Personal Details' },
+  { key: 'career_education', label: 'Career & Education' },
+  { key: 'location', label: 'Location' },
+  { key: 'family_details', label: 'Family Details' },
+];
 
 function calculateAge(dateOfBirth: string): number {
   const today = new Date();
@@ -88,13 +95,6 @@ const ClientProfile = () => {
   const [lastSignIn, setLastSignIn] = useState<string | null>(null);
   const [sectionJumpItems, setSectionJumpItems] = useState<{ key: string; label: string }[]>([]);
 
-  const defaultSections = [
-    { key: 'personal_details', label: 'Personal Details' },
-    { key: 'career_education', label: 'Career & Education' },
-    { key: 'location', label: 'Location' },
-    { key: 'family_details', label: 'Family Details' },
-  ];
-
   const profileCompletion = useMemo(() => {
     if (!profile) return 0;
     return calculateProfileCompletion(profile);
@@ -113,24 +113,7 @@ const ClientProfile = () => {
     marital_status: 'never_married',
   });
 
-  useEffect(() => {
-    if (authLoading) return;
-    
-    if (!isAuthenticated) {
-      navigate('/client-auth');
-      return;
-    }
-    
-    if (isAdmin) {
-      navigate('/dashboard');
-      return;
-    }
-    
-    fetchProfile();
-    fetchSectionConfig();
-  }, [authLoading, isAuthenticated, isAdmin, navigate]);
-
-  const fetchSectionConfig = async () => {
+  const fetchSectionConfig = useCallback(async () => {
     try {
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
       const response = await fetch(`${API_BASE_URL}/api/sections`);
@@ -148,7 +131,7 @@ const ClientProfile = () => {
       console.error('[ClientProfile] Failed to fetch section config, using defaults:', err);
       setSectionJumpItems(defaultSections);
     }
-  };
+  }, []);
 
   const handleSectionJump = (key: string) => {
     const element = document.getElementById(`section-${key}`);
@@ -157,7 +140,7 @@ const ClientProfile = () => {
     }
   };
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
@@ -254,7 +237,24 @@ const ClientProfile = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    
+    if (!isAuthenticated) {
+      navigate('/client-auth');
+      return;
+    }
+    
+    if (isAdmin) {
+      navigate('/dashboard');
+      return;
+    }
+    
+    void fetchProfile();
+    void fetchSectionConfig();
+  }, [authLoading, fetchProfile, fetchSectionConfig, isAuthenticated, isAdmin, navigate]);
 
   const handleInputChange = (field: keyof ProfileFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));

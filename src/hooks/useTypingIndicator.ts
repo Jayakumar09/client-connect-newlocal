@@ -1,8 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { RealtimePresenceState } from '@supabase/supabase-js';
 
 interface TypingState {
   [partnerId: string]: boolean;
+}
+
+interface PresencePayload {
+  user_id?: string;
+  is_typing?: boolean;
+  timestamp?: string;
 }
 
 export const useTypingIndicator = (currentUserId: string | null, partnerId: string) => {
@@ -44,8 +51,8 @@ export const useTypingIndicator = (currentUserId: string | null, partnerId: stri
         const state = channel.presenceState();
         let partnerIsTyping = false;
         
-        Object.values(state).forEach((presences: any) => {
-          presences.forEach((presence: any) => {
+        Object.values(state as RealtimePresenceState<PresencePayload>).forEach((presences) => {
+          presences.forEach((presence) => {
             if (presence.user_id === partnerId && presence.is_typing) {
               partnerIsTyping = true;
             }

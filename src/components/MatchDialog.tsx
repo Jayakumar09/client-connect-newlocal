@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Heart, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 
 interface MatchDialogProps {
   open: boolean;
@@ -51,7 +52,7 @@ const MatchDialog = ({
 
       const adminEmail = user.email || "admin";
 
-      const updateData: any = {
+      const updateData: TablesUpdate<"persons"> | TablesUpdate<"client_profiles"> = {
         match_status: "matched",
         matched_at: new Date().toISOString(),
         matched_by: adminEmail,

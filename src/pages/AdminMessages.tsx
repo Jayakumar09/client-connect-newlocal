@@ -59,6 +59,26 @@ interface ClientProfile {
   match_remarks?: string | null;
 }
 
+interface ClientProfileLookup {
+  user_id: string;
+  full_name: string | null;
+  profile_photo: string | null;
+  phone_number: string | null;
+  email: string | null;
+  profile_id?: string | null;
+}
+
+type ExtendedMessageInsert = {
+  sender_id: string | undefined;
+  receiver_id: string;
+  message: string;
+  message_type?: "document" | "image" | "video" | "audio";
+  attachment_url?: string;
+  attachment_name?: string;
+  attachment_size?: number;
+  attachment_mime_type?: string;
+};
+
 const AdminMessages: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAdmin, isAuthenticated, loading: authLoading } = useAuth();
@@ -124,18 +144,19 @@ const AdminMessages: React.FC = () => {
       const partnerIds = Array.from(partnerMap.keys());
       
       if (partnerIds.length > 0) {
-        // Cast to any to bypass outdated TypeScript types - profile_id exists in DB
-        const { data: profiles } = await supabase
+        const { data: profileRows } = await supabase
           .from("client_profiles")
           .select("user_id, full_name, profile_photo, phone_number, email, profile_id")
-          .in("user_id", partnerIds) as any;
+          .in("user_id", partnerIds);
+
+        const profiles = (profileRows ?? []) as unknown as ClientProfileLookup[];
 
         const profileMap = new Map(
-          (profiles || []).map((p: any) => [p.user_id, p])
+          profiles.map((profile) => [profile.user_id, profile])
         );
 
         partnerMap.forEach((conv, partnerId) => {
-          const profile: any = profileMap.get(partnerId);
+          const profile = profileMap.get(partnerId);
           if (profile) {
             conv.profileId = profile.profile_id || undefined;
             conv.partnerName = profile.full_name 
@@ -221,7 +242,7 @@ const AdminMessages: React.FC = () => {
     }
   }, [selectedPartner, messages]);
 
-  const sendMessage = async () => {
+  const sendMessage = useCallback(async () => {
     if (!selectedPartner || sending) return;
     if (!newMessage.trim() && !attachmentPreview) return;
 
@@ -251,18 +272,20 @@ const AdminMessages: React.FC = () => {
         else if (attachmentPreview.type.startsWith("video/")) messageType = "video";
         else if (attachmentPreview.type.startsWith("audio/")) messageType = "audio";
 
+        const payload: ExtendedMessageInsert = {
+          sender_id: user?.id,
+          receiver_id: selectedPartner.partnerId,
+          message: newMessage.trim() || "",
+          message_type: messageType,
+          attachment_url: urlData.publicUrl,
+          attachment_name: attachmentPreview.name,
+          attachment_size: attachmentPreview.size,
+          attachment_mime_type: attachmentPreview.type
+        };
+
         const { error } = await supabase
           .from("messages")
-          .insert({
-            sender_id: user?.id,
-            receiver_id: selectedPartner.partnerId,
-            message: newMessage.trim() || "",
-            message_type: messageType as any,
-            attachment_url: urlData.publicUrl,
-            attachment_name: attachmentPreview.name,
-            attachment_size: attachmentPreview.size,
-            attachment_mime_type: attachmentPreview.type
-          });
+          .insert(payload as never);
 
         if (error) throw error;
       } else {
@@ -287,7 +310,7 @@ const AdminMessages: React.FC = () => {
     } finally {
       setSending(false);
     }
-  };
+  }, [attachmentPreview, fetchConversations, fetchMessages, newMessage, selectedPartner, sending, user?.id]);
 
   const handleSelectConversation = useCallback(async (conv: Conversation) => {
     setSelectedPartner(conv);
@@ -715,11 +738,11 @@ const AdminMessages: React.FC = () => {
                             <div className="space-y-2">
                               {msgs.map((msg) => {
                                 const isMine = msg.sender_id === user?.id;
-                                const isVoiceMessage = (msg as any).message_type === 'audio' || msg.message.startsWith('🎤');
-                                const hasAttachment = (msg as any).attachment_url;
-                                const attachmentUrl = (msg as any).attachment_url;
-                                const attachmentName = (msg as any).attachment_name;
-                                const attachmentMimeType = (msg as any).attachment_mime_type;
+                                const isVoiceMessage = msg.message_type === 'audio' || msg.message.startsWith('🎤');
+                                const hasAttachment = msg.attachment_url;
+                                const attachmentUrl = msg.attachment_url;
+                                const attachmentName = msg.attachment_name;
+                                const attachmentMimeType = msg.attachment_mime_type;
                                 const isImageAttachment = attachmentMimeType?.startsWith('image/');
                                 
                                 return (
@@ -789,9 +812,9 @@ const AdminMessages: React.FC = () => {
                                             <p className={cn("text-sm font-medium truncate", isMine ? "text-white" : "text-foreground")}>
                                               {attachmentName || 'Document'}
                                             </p>
-                                            {(msg as any).attachment_size && (
+                                            {msg.attachment_size && (
                                               <p className={cn("text-xs", isMine ? "text-white/70" : "text-muted-foreground")}>
-                                                {formatFileSize((msg as any).attachment_size)}
+                                                {formatFileSize(msg.attachment_size)}
                                               </p>
                                             )}
                                           </div>

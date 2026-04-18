@@ -7,6 +7,14 @@ import { verifyZipArchive } from '../utils/zip.js';
 
 const router = express.Router();
 
+interface BackupListEntry {
+  name: string;
+  path: string;
+  size: number;
+  created: Date;
+  modified: Date;
+}
+
 function requireAdmin(req, res, next) {
   const apiKey = req.headers['x-admin-api-key'];
   if (apiKey !== process.env.ADMIN_API_KEY) {
@@ -229,7 +237,7 @@ router.get('/backup/list', async (req, res) => {
 
     const files = fs.readdirSync(backupDir)
       .filter(f => f.endsWith('.zip'))
-      .map(f => {
+      .map<BackupListEntry>(f => {
         const filePath = path.join(backupDir, f);
         const stat = fs.statSync(filePath);
         return {
@@ -240,7 +248,7 @@ router.get('/backup/list', async (req, res) => {
           modified: stat.mtime
         };
       })
-      .sort((a: any, b: any) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+      .sort((a, b) => b.modified.getTime() - a.modified.getTime());
 
     res.json({ success: true, backups: files });
   } catch (err) {

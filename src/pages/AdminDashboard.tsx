@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -88,6 +88,18 @@ const AdminDashboard = () => {
   const { storage, loading: storageLoading } = useStorageSummary();
   const { health } = useSystemHealth();
 
+  const fetchData = useCallback(async () => {
+    try {
+      setError(null);
+      await Promise.all([fetchPersons(), fetchClientProfiles(), fetchUnreadCount()]);
+    } catch (err) {
+      console.error('[AdminDashboard] Error fetching data:', err);
+      setError('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (authLoading) return;
     
@@ -101,20 +113,8 @@ const AdminDashboard = () => {
       return;
     }
     
-    fetchData();
-  }, [authLoading, isAuthenticated, isAdmin, navigate]);
-
-  const fetchData = async () => {
-    try {
-      setError(null);
-      await Promise.all([fetchPersons(), fetchClientProfiles(), fetchUnreadCount()]);
-    } catch (err) {
-      console.error('[AdminDashboard] Error fetching data:', err);
-      setError('Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  };
+    void fetchData();
+  }, [authLoading, fetchData, isAuthenticated, isAdmin, navigate]);
 
   const fetchUnreadCount = async () => {
     try {
@@ -273,9 +273,16 @@ const AdminDashboard = () => {
     fetchClientProfiles();
   };
 
-  const handleMarkMatched = (type: 'person' | 'client_profile', profile: any) => {
+  const handleMarkMatched = (
+    type: 'person' | 'client_profile',
+    profile: { id: string; name?: string; full_name?: string; profile_id?: string | null }
+  ) => {
     setMatchProfileType(type);
-    setMatchProfile(profile);
+    setMatchProfile({
+      id: profile.id,
+      name: profile.name ?? profile.full_name ?? 'Unknown Profile',
+      profile_id: profile.profile_id ?? undefined,
+    });
     setMatchDialogOpen(true);
   };
 

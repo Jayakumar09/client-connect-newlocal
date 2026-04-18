@@ -8,6 +8,7 @@ import { Check, Crown, Star, Zap, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { BRAND_LOGO } from "@/lib/branding";
 import { Link } from "react-router-dom";
+import type { User } from "@supabase/supabase-js";
 
 interface Plan {
   id: string;
@@ -23,7 +24,7 @@ interface Plan {
 const Plans = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [currentPlan, setCurrentPlan] = useState<string>("free");
   const [isAdmin, setIsAdmin] = useState(false);
 
