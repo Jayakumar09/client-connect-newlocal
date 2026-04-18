@@ -10,8 +10,9 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Smartphone, CreditCard, Building2, QrCode, Copy, Check, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 import { Link } from "react-router-dom";
+import type { User } from "@supabase/supabase-js";
 
 const planDetails: Record<string, { name: string; price: number; duration: string; months: number }> = {
   standard: { name: "Standard Plan", price: 2500, duration: "6 months", months: 6 },
@@ -25,8 +26,8 @@ const Payments = () => {
   const planId = searchParams.get("plan") || "standard";
   
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState<string>("upi");
+  const [user, setUser] = useState<User | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"upi" | "card" | "bank_transfer">("upi");
   const [copied, setCopied] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [transactionRef, setTransactionRef] = useState("");
@@ -87,7 +88,7 @@ const Payments = () => {
           user_id: user.id,
           subscription_id: subscription.id,
           amount: selectedPlan.price,
-          payment_method: paymentMethod as "upi" | "card" | "bank_transfer",
+          payment_method: paymentMethod,
           transaction_reference: transactionRef || null,
           status: "pending",
           plan_type: planId as "free" | "standard" | "premium" | "elite",
@@ -116,9 +117,9 @@ const Payments = () => {
 
       toast.success("Payment submitted! We will verify and activate your plan within 24 hours.");
       navigate("/subscriptions");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Payment error:", error);
-      toast.error("Failed to submit payment. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Failed to submit payment. Please try again.");
     } finally {
       setProcessing(false);
     }
@@ -138,7 +139,7 @@ const Payments = () => {
       <header className="bg-primary text-primary-foreground shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/browse" className="flex items-center gap-3">
-            <img src={logoImage} alt="Sri Lakshmi Mangalya Mahal" className="h-12 w-auto" />
+            <img src={BRAND_LOGO} alt="Sri Lakshmi Mangalya Mahal" className="h-12 w-auto" />
             <span className="text-xl font-bold hidden sm:inline">PAYMENT</span>
           </Link>
           <div className="flex items-center gap-3">
@@ -259,16 +260,16 @@ const Payments = () => {
 
                 {/* Bank Transfer Option */}
                 <div className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                  paymentMethod === "bank" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                  paymentMethod === "bank_transfer" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
                 }`}>
                   <div className="flex items-center gap-3">
-                    <RadioGroupItem value="bank" id="bank" />
-                    <Label htmlFor="bank" className="flex items-center gap-2 cursor-pointer flex-1">
+                    <RadioGroupItem value="bank_transfer" id="bank_transfer" />
+                    <Label htmlFor="bank_transfer" className="flex items-center gap-2 cursor-pointer flex-1">
                       <Building2 className="h-5 w-5 text-primary" />
                       <span className="font-medium">Bank Transfer / NEFT</span>
                     </Label>
                   </div>
-                  {paymentMethod === "bank" && (
+                  {paymentMethod === "bank_transfer" && (
                     <div className="mt-4 pl-8 space-y-3">
                       <div className="bg-muted rounded-lg p-4 space-y-2 text-sm">
                         <div className="flex justify-between">

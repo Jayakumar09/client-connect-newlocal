@@ -11,14 +11,22 @@ import { useShortlist } from "@/hooks/useShortlist";
 import { useBlockReport } from "@/hooks/useBlockReport";
 import ClientProfileViewDialog from "@/components/ClientProfileViewDialog";
 import InterestsPanel from "@/components/InterestsPanel";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { ClientHeader } from "@/components/ClientHeader";
+import type { Tables } from "@/integrations/supabase/types";
+
+type ClientProfile = Tables<"client_profiles"> & {
+  profile_id?: string | null;
+  match_status?: 'not_matched' | 'matched' | null;
+  matched_with_id?: string | null;
+  match_remarks?: string | null;
+};
 
 const Shortlists = () => {
   const navigate = useNavigate();
   const { shortlistedProfiles, loading: shortlistLoading, removeFromShortlist, fetchShortlist } = useShortlist();
   const { blockedIds, unblockUser, fetchBlockedUsers } = useBlockReport();
-  const [blockedProfiles, setBlockedProfiles] = useState<any[]>([]);
-  const [selectedProfile, setSelectedProfile] = useState<any>(null);
+  const [blockedProfiles, setBlockedProfiles] = useState<ClientProfile[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<ClientProfile | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -72,18 +80,7 @@ const Shortlists = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <img src={logoImage} alt="Sri Lakshmi" className="w-10 h-10 object-contain" />
-          <h1 className="text-xl font-semibold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-            My Lists
-          </h1>
-        </div>
-      </header>
+      <ClientHeader showBackToDashboard showNotificationBell />
 
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="interests" className="w-full">
@@ -151,6 +148,11 @@ const Shortlists = () => {
                         </Avatar>
                         <div className="flex-1">
                           <h3 className="font-semibold">{profile.full_name}</h3>
+                          {profile.profile_id && (
+                            <Badge variant="outline" className="text-xs font-mono mt-1">
+                              {profile.profile_id}
+                            </Badge>
+                          )}
                           <p className="text-sm text-muted-foreground">
                             {calculateAge(profile.date_of_birth)} yrs
                             {profile.city && `, ${profile.city}`}
@@ -200,6 +202,11 @@ const Shortlists = () => {
                         </Avatar>
                         <div className="flex-1">
                           <h3 className="font-semibold text-muted-foreground">{profile.full_name}</h3>
+                          {profile.profile_id && (
+                            <Badge variant="outline" className="text-xs font-mono mt-1">
+                              {profile.profile_id}
+                            </Badge>
+                          )}
                           <p className="text-sm text-muted-foreground">Blocked</p>
                         </div>
                         <Button

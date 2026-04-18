@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
+import { adminFetch, isAdminApiKeyConfigured, resetAdminAuthError } from '@/lib/api';
 
-const API_BASE = import.meta.env.VITE_BACKUP_API_URL || 'http://localhost:3001';
-const ADMIN_API_KEY = import.meta.env.VITE_ADMIN_API_KEY || '';
 const LOG_PREFIX = '[useStorageSummary]';
 
 export interface StorageSummary {
@@ -188,101 +187,171 @@ export function useStorageSummary() {
   const [storage, setStorage] = useState<StorageSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetched, setFetched] = useState(false);
 
   const fetchStorage = useCallback(async () => {
+    if (!isAdminApiKeyConfigured()) {
+      const msg = 'Admin API key not configured';
+      console.error(`${LOG_PREFIX} fetchStorage - ${msg}`);
+      setError(msg);
+      setLoading(false);
+      return;
+    }
+    
+    if (fetched && error) {
+      console.log(`${LOG_PREFIX} fetchStorage - Already failed once, skipping auto-refetch`);
+      return;
+    }
+    
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] fetchStorage - Fetching storage summary`);
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/storage/summary`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
-      if (!response.ok) throw new Error(`Failed to fetch storage summary: ${response.status}`);
+      const response = await adminFetch('/api/admin/storage/summary');
+      if (!response.ok) {
+        const status = response.status;
+        if (status === 401) {
+          setError('Authentication failed - please refresh the page');
+          setFetched(true);
+          return;
+        }
+        throw new Error(`Failed to fetch storage summary: ${status}`);
+      }
       const data = await response.json();
       console.log(`${LOG_PREFIX} fetchStorage - Success:`, data);
       setStorage(data);
+      setFetched(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       console.error(`${LOG_PREFIX} fetchStorage - Error:`, message);
       setError(message);
+      setFetched(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetched, error]);
 
   useEffect(() => {
     fetchStorage();
   }, [fetchStorage]);
 
-  return { storage, loading, error, refetch: fetchStorage };
+  return { storage, loading, error, refetch: () => { setFetched(false); fetchStorage(); } };
 }
 
 export function useBackupSummary() {
   const [backup, setBackup] = useState<BackupSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetched, setFetched] = useState(false);
 
   const fetchBackup = useCallback(async () => {
+    if (!isAdminApiKeyConfigured()) {
+      const msg = 'Admin API key not configured';
+      console.error(`${LOG_PREFIX} fetchBackupSummary - ${msg}`);
+      setError(msg);
+      setLoading(false);
+      return;
+    }
+    
+    if (fetched && error) {
+      console.log(`${LOG_PREFIX} fetchBackupSummary - Already failed once, skipping auto-refetch`);
+      return;
+    }
+    
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] fetchBackupSummary - Fetching backup summary`);
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/backups/summary`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
-      if (!response.ok) throw new Error(`Failed to fetch backup summary: ${response.status}`);
+      const response = await adminFetch('/api/admin/backups/summary');
+      if (!response.ok) {
+        const status = response.status;
+        if (status === 401) {
+          setError('Authentication failed - please refresh the page');
+          setFetched(true);
+          return;
+        }
+        throw new Error(`Failed to fetch backup summary: ${status}`);
+      }
       const data = await response.json();
       console.log(`${LOG_PREFIX} fetchBackupSummary - Success:`, data);
       setBackup(data);
+      setFetched(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       console.error(`${LOG_PREFIX} fetchBackupSummary - Error:`, message);
       setError(message);
+      setFetched(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetched, error]);
 
   useEffect(() => {
     fetchBackup();
   }, [fetchBackup]);
 
-  return { backup, loading, error, refetch: fetchBackup };
+  return { backup, loading, error, refetch: () => { setFetched(false); fetchBackup(); } };
 }
 
 export function useSystemHealth() {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fetched, setFetched] = useState(false);
 
   const fetchHealth = useCallback(async () => {
+    if (!isAdminApiKeyConfigured()) {
+      const msg = 'Admin API key not configured';
+      console.error(`${LOG_PREFIX} fetchHealth - ${msg}`);
+      setError(msg);
+      setLoading(false);
+      return;
+    }
+    
+    if (fetched && error) {
+      console.log(`${LOG_PREFIX} fetchHealth - Already failed once, skipping auto-refetch`);
+      return;
+    }
+    
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] fetchHealth - Fetching system health`);
     setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/health`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
-      if (!response.ok) throw new Error('Failed to fetch health');
+      const response = await adminFetch('/api/admin/health');
+      if (!response.ok) {
+        const status = response.status;
+        if (status === 401) {
+          setError('Authentication failed - please refresh the page');
+          setFetched(true);
+          return;
+        }
+        throw new Error(`Failed to fetch health: ${status}`);
+      }
       const result = await response.json();
       console.log(`${LOG_PREFIX} fetchHealth - Success:`, result);
       setHealth(result.data || result);
+      setFetched(true);
     } catch (err) {
-      console.error(`${LOG_PREFIX} fetchHealth - Error:`, err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`${LOG_PREFIX} fetchHealth - Error:`, message);
+      setError(message);
+      setFetched(true);
       setHealth({
         supabaseConnected: false,
         googleDriveConnected: false,
         lastHealthCheck: new Date().toISOString(),
-        errors: [err instanceof Error ? err.message : 'Unknown error']
+        errors: [message]
       });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetched, error]);
 
   useEffect(() => {
     fetchHealth();
   }, [fetchHealth]);
 
-  return { health, loading, refetch: fetchHealth };
+  return { health, loading, error, refetch: () => { setFetched(false); fetchHealth(); } };
 }
 
 export function useAdminDashboard() {
@@ -295,9 +364,7 @@ export function useAdminDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/dashboard`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
+      const response = await adminFetch('/api/admin/dashboard');
       if (!response.ok) throw new Error(`Failed to fetch dashboard: ${response.status}`);
       const result = await response.json();
       console.log(`${LOG_PREFIX} fetchDashboard - Success:`, result);
@@ -329,9 +396,7 @@ export function useProfileStorage(personId: string) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/storage/profile/${personId}`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
+      const response = await adminFetch(`/api/admin/storage/profile/${personId}`);
       if (!response.ok) throw new Error(`Failed to fetch profile storage: ${response.status}`);
       const data = await response.json();
       console.log(`${LOG_PREFIX} fetchProfileStorage - Success:`, data);
@@ -354,9 +419,7 @@ export function useProfileStorage(personId: string) {
 
 export const fetchStorageSummary = async (): Promise<StorageSummary | null> => {
   try {
-    const response = await fetch(`${API_BASE}/api/admin/storage/summary`, {
-      headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-    });
+    const response = await adminFetch('/api/admin/storage/summary');
     if (!response.ok) throw new Error(`Failed to fetch storage summary: ${response.status}`);
     return await response.json();
   } catch (error) {
@@ -367,9 +430,7 @@ export const fetchStorageSummary = async (): Promise<StorageSummary | null> => {
 
 export const fetchProfileStorageUsage = async (personId: string): Promise<ProfileStorage | null> => {
   try {
-    const response = await fetch(`${API_BASE}/api/admin/storage/profile/${personId}`, {
-      headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-    });
+    const response = await adminFetch(`/api/admin/storage/profile/${personId}`);
     if (!response.ok) throw new Error(`Failed to fetch profile storage: ${response.status}`);
     return await response.json();
   } catch (error) {
@@ -380,9 +441,7 @@ export const fetchProfileStorageUsage = async (personId: string): Promise<Profil
 
 export const fetchBackupSummary = async (): Promise<BackupSummary | null> => {
   try {
-    const response = await fetch(`${API_BASE}/api/admin/backups/summary`, {
-      headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-    });
+    const response = await adminFetch('/api/admin/backups/summary');
     if (!response.ok) throw new Error(`Failed to fetch backup summary: ${response.status}`);
     return await response.json();
   } catch (error) {
@@ -393,9 +452,7 @@ export const fetchBackupSummary = async (): Promise<BackupSummary | null> => {
 
 export const fetchBackupHistory = async (limit = 50) => {
   try {
-    const response = await fetch(`${API_BASE}/api/admin/backups/history?limit=${limit}`, {
-      headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-    });
+    const response = await adminFetch(`/api/admin/backups/history?limit=${limit}`);
     if (!response.ok) throw new Error(`Failed to fetch backup history: ${response.status}`);
     return await response.json();
   } catch (error) {
@@ -406,11 +463,10 @@ export const fetchBackupHistory = async (limit = 50) => {
 
 export const triggerManualBackup = async (force = false) => {
   try {
-    const response = await fetch(`${API_BASE}/api/backup/trigger`, {
+    const response = await adminFetch('/api/backup/trigger', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Admin-API-Key': ADMIN_API_KEY
       },
       body: JSON.stringify({ force })
     });
@@ -427,11 +483,10 @@ export const triggerManualBackup = async (force = false) => {
 
 export const cleanupOldBackups = async () => {
   try {
-    const response = await fetch(`${API_BASE}/api/admin/backups/cleanup`, {
+    const response = await adminFetch('/api/admin/backups/cleanup', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Admin-API-Key': ADMIN_API_KEY
       }
     });
     if (!response.ok) {

@@ -45,11 +45,15 @@ export const NotificationSettings = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("notification_preferences")
       .select("*")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
+
+    if (error) {
+      console.debug("[NotificationSettings] Query error (normal for new users):", user.id, error.message);
+    }
 
     if (data) {
       setPreferences({
@@ -59,6 +63,9 @@ export const NotificationSettings = () => {
         sound_enabled: data.sound_enabled,
         vibration_enabled: data.vibration_enabled,
       });
+    } else {
+      console.debug("[NotificationSettings] No preferences found → using defaults:", user.id);
+      setPreferences(defaultPreferences);
     }
   };
 

@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Filter, ChevronDown, ChevronUp, Lock, Search, X as ClearIcon, Crown, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, Lock, Search, X } from 'lucide-react';
+
+const SHOW_UPGRADE = import.meta.env.VITE_ENABLE_UPGRADE === 'true';
 
 interface AdvancedSearchFiltersProps {
   isPaidUser: boolean;
@@ -96,21 +100,21 @@ export const AdvancedSearchFilters = ({
   ).length;
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 mb-6 shadow-sm">
+    <div className="bg-white/80 backdrop-blur-sm rounded-lg p-2 sm:p-4 mb-2 sm:mb-6 shadow-sm">
       {/* Basic Search */}
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-2">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by name, location, occupation..."
             value={filters.searchTerm}
             onChange={(e) => updateFilter('searchTerm', e.target.value)}
-            className="pl-10 border-pink-200 focus:ring-pink-500"
+            className="pl-10 border-pink-200 focus:ring-pink-500 text-sm sm:text-base"
           />
         </div>
         <div className="flex gap-2">
           <Select value={filters.gender} onValueChange={(v) => updateFilter('gender', v)}>
-            <SelectTrigger className="w-32 border-pink-200">
+            <SelectTrigger className="w-28 sm:w-32 border-pink-200 text-sm">
               <SelectValue placeholder="Gender" />
             </SelectTrigger>
             <SelectContent>
@@ -120,7 +124,7 @@ export const AdvancedSearchFilters = ({
             </SelectContent>
           </Select>
           <Select value={filters.religion} onValueChange={(v) => updateFilter('religion', v)}>
-            <SelectTrigger className="w-32 border-pink-200">
+            <SelectTrigger className="w-28 sm:w-32 border-pink-200 text-sm">
               <SelectValue placeholder="Religion" />
             </SelectTrigger>
             <SelectContent>
@@ -151,15 +155,15 @@ export const AdvancedSearchFilters = ({
           </CollapsibleTrigger>
           {activeFilterCount > 0 && (
             <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
-              <X className="h-4 w-4 mr-1" />
+              <ClearIcon className="h-4 w-4 mr-1" />
               Clear all
             </Button>
           )}
         </div>
 
-        <CollapsibleContent className="mt-4">
-          {!isPaidUser && (
-            <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+        <CollapsibleContent className="mt-3 space-y-3">
+          {!isPaidUser && SHOW_UPGRADE && (
+            <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
               <div className="flex items-center gap-2 text-purple-700">
                 <Lock className="h-4 w-4" />
                 <span className="text-sm font-medium">Premium filters require a paid subscription</span>
@@ -174,7 +178,7 @@ export const AdvancedSearchFilters = ({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Caste Filter */}
             <div className="relative">
               <label className="text-sm font-medium text-muted-foreground mb-1 block">Caste</label>

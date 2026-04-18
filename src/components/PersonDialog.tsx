@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +14,7 @@ import { z } from "zod";
 import imageCompression from "browser-image-compression";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useStorageSummary, formatBytesUtil, getStatusLabel, getStatusColor } from "@/hooks/useStorageSummary";
+import { dedupeImages, getStableKey, dedupeUrls } from "@/lib/image-utils";
 
 interface PersonDialogProps {
   open: boolean;
@@ -25,10 +27,18 @@ const personSchema = z.object({
   phoneno: z.string()
     .trim()
     .min(1, { message: "Phone number is required" })
-    .regex(/^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/, { message: "Invalid phone number format. Use digits, +, -, spaces, or parentheses" }),
+    .regex(/^[+]?[()]?[0-9]{1,4}[)]?[-\s.]?[()]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/, { message: "Invalid phone number format. Use digits, +, -, spaces, or parentheses" }),
   comments: z.string().max(1000, { message: "Comments must be less than 1000 characters" }).optional(),
   paymentStatus: z.enum(['paid', 'non_paid', 'free']),
 });
+
+const isDev = import.meta.env.DEV;
+
+function log(prefix: string, message: string, data?: unknown) {
+  if (isDev) {
+    console.log(`[PersonDialog] [${prefix}] ${message}`, data ?? '');
+  }
+}
 
 const PersonDialog = ({ open, onClose, person }: PersonDialogProps) => {
   const [name, setName] = useState("");
@@ -44,27 +54,56 @@ const PersonDialog = ({ open, onClose, person }: PersonDialogProps) => {
   
   const { storage, loading: storageLoading, refetch: refetchStorage } = useStorageSummary();
 
+  const personIdRef = useRef<string | undefined>(person?.id);
+  const openRef = useRef(open);
+  openRef.current = open;
+  personIdRef.current = person?.id;
+
+  const resetAllState = useCallback(() => {
+    log('reset', 'Resetting all state');
+    setName("");
+    setAddress("");
+    setPhoneno("");
+    setComments("");
+    setPaymentStatus('free');
+    setProfileImageFile(null);
+    setExistingProfileImage(null);
+    setImageFiles([]);
+    setExistingImageUrls([]);
+  }, []);
+
+  const loadPersonData = useCallback((p: NonNullable<Person>) => {
+    log('load', `Loading person data for ID: ${p.id}`);
+    const existingUrls = dedupeUrls(p.image_urls || [], 'existingImageUrls from person');
+    log('load', `existingImageUrls: ${existingUrls.length} (deduped)`);
+    
+    setName(p.name);
+    setAddress(p.address);
+    setPhoneno(p.phoneno);
+    setComments(p.comments || "");
+    setPaymentStatus(p.payment_status || 'free');
+    setExistingProfileImage(p.profile_image || null);
+    setExistingImageUrls(existingUrls);
+    setImageFiles([]);
+  }, []);
+
   useEffect(() => {
-    if (person) {
-      setName(person.name);
-      setAddress(person.address);
-      setPhoneno(person.phoneno);
-      setComments(person.comments || "");
-      setPaymentStatus(person.payment_status || 'free');
-      setExistingProfileImage(person.profile_image || null);
-      setExistingImageUrls(person.image_urls || []);
-    } else {
-      setName("");
-      setAddress("");
-      setPhoneno("");
-      setComments("");
-      setPaymentStatus('free');
-      setProfileImageFile(null);
-      setExistingProfileImage(null);
-      setImageFiles([]);
-      setExistingImageUrls([]);
+    if (open) {
+      if (person) {
+        loadPersonData(person);
+      } else {
+        resetAllState();
+      }
     }
-  }, [person]);
+  }, [open, person, loadPersonData, resetAllState]);
+
+  useEffect(() => {
+    return () => {
+      if (!openRef.current) {
+        log('cleanup', 'Modal closed, cleaning up blob URLs');
+      }
+    };
+  }, []);
 
   const isStorageCritical = storage?.status === 'limit_reached' || storage?.status === 'critical';
   const canUpload = !isStorageCritical || (storage?.remainingBytes ?? 0) > 0;
@@ -90,19 +129,22 @@ const PersonDialog = ({ open, onClose, person }: PersonDialogProps) => {
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const totalImages = existingImageUrls.length + imageFiles.length + files.length;
+    if (files.length === 0) return;
 
+    const totalImages = existingImageUrls.length + imageFiles.length + files.length;
     if (totalImages > 8) {
       toast.error("Maximum 8 images allowed per person");
       return;
     }
 
-    // Compress images before adding them
+    log('select', `Adding ${files.length} new images`);
+    log('select', `Current state: ${existingImageUrls.length} existing + ${imageFiles.length} new files`);
+
     const compressedFiles: File[] = [];
     for (const file of files) {
       try {
         const options = {
-          maxSizeMB: 0.5, // 500KB
+          maxSizeMB: 0.5,
           maxWidthOrHeight: 1920,
           useWebWorker: true,
         };
@@ -114,15 +156,28 @@ const PersonDialog = ({ open, onClose, person }: PersonDialogProps) => {
       }
     }
 
-    setImageFiles([...imageFiles, ...compressedFiles]);
+    setImageFiles(prevFiles => {
+      const combined = [...prevFiles, ...compressedFiles];
+      const deduplicated = dedupeImages(combined, 'handleImageSelect');
+      log('select', `After dedupe: ${deduplicated.length} images`);
+      return deduplicated;
+    });
   };
 
   const removeNewImage = (index: number) => {
-    setImageFiles(imageFiles.filter((_, i) => i !== index));
+    setImageFiles(prevFiles => {
+      const newFiles = prevFiles.filter((_, i) => i !== index);
+      log('remove', `Removed image at index ${index}, remaining: ${newFiles.length}`);
+      return newFiles;
+    });
   };
 
   const removeExistingImage = async (url: string) => {
-    setExistingImageUrls(existingImageUrls.filter((u) => u !== url));
+    setExistingImageUrls(prevUrls => {
+      const newUrls = prevUrls.filter((u) => u !== url);
+      log('remove', `Removed existing image, remaining: ${newUrls.length}`);
+      return newUrls;
+    });
   };
 
   const sanitizeFileName = (name: string): string => {
@@ -168,9 +223,20 @@ const PersonDialog = ({ open, onClose, person }: PersonDialogProps) => {
 
       const { error: uploadError } = await supabase.storage
         .from("person-images")
-        .upload(fileName, file);
+        .upload(fileName, file, { upsert: true });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.warn(`Upload warning for ${fileName}:`, uploadError.message);
+        // Try to get existing URL if upload fails
+        const { data: existingUrl } = await supabase.storage
+          .from("person-images")
+          .createSignedUrl(fileName, 31536000);
+        if (existingUrl) {
+          uploadedUrls.push(existingUrl.signedUrl);
+          continue;
+        }
+        throw uploadError;
+      }
 
       // Generate signed URL (valid for 1 year)
       const { data: signedData, error: signedError } = await supabase.storage
@@ -201,15 +267,19 @@ const PersonDialog = ({ open, onClose, person }: PersonDialogProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      // Upload profile image
       const profileImageUrl = await uploadProfileImage(user.id, validated.name);
 
-      // Upload new images with new naming convention
       const newImageUrls = await uploadImages(user.id, validated.name, existingImageUrls.length);
-      const allImageUrls = [...existingImageUrls, ...newImageUrls];
+      
+      const combinedUrls = [...existingImageUrls, ...newImageUrls];
+      const finalImageUrls = dedupeUrls(combinedUrls, 'handleSubmit finalImageUrls');
+      
+      log('submit', `Payload: ${existingImageUrls.length} existing + ${newImageUrls.length} new = ${finalImageUrls.length} total`);
+      log('submit', 'existingImageUrls:', existingImageUrls);
+      log('submit', 'newImageUrls:', newImageUrls);
+      log('submit', 'finalImageUrls:', finalImageUrls);
 
       if (person) {
-        // Update existing person
         const { error } = await supabase
           .from("persons")
           .update({
@@ -217,28 +287,29 @@ const PersonDialog = ({ open, onClose, person }: PersonDialogProps) => {
             address: validated.address,
             phoneno: validated.phoneno,
             comments: validated.comments || null,
-            image_urls: allImageUrls,
+            image_urls: finalImageUrls,
             profile_image: profileImageUrl,
             payment_status: validated.paymentStatus,
           })
           .eq("id", person.id);
 
         if (error) throw error;
+        log('submit', 'Update successful');
         toast.success("Person record updated successfully");
       } else {
-        // Create new person
         const { error } = await supabase.from("persons").insert({
           name: validated.name,
           address: validated.address,
           phoneno: validated.phoneno,
           comments: validated.comments || null,
-          image_urls: allImageUrls,
+          image_urls: finalImageUrls,
           profile_image: profileImageUrl,
           payment_status: validated.paymentStatus,
           user_id: user.id,
         });
 
         if (error) throw error;
+        log('submit', 'Insert successful');
         toast.success("Person record created successfully");
       }
 
@@ -258,10 +329,19 @@ const PersonDialog = ({ open, onClose, person }: PersonDialogProps) => {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{person ? "Edit Person" : "Add New Person"}</DialogTitle>
-          <DialogDescription>
-            Fill in the details below. You can upload up to 8 high-resolution images.
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle>{person ? "Edit Person" : "Add New Person"}</DialogTitle>
+              <DialogDescription>
+                Fill in the details below. You can upload up to 8 high-resolution images.
+              </DialogDescription>
+            </div>
+            {person?.profile_id && (
+              <Badge variant="outline" className="font-mono ml-4">
+                {person.profile_id}
+              </Badge>
+            )}
+          </div>
         </DialogHeader>
 
         {storage && (
@@ -389,7 +469,7 @@ const PersonDialog = ({ open, onClose, person }: PersonDialogProps) => {
             
             <div className="grid grid-cols-4 gap-3">
               {existingImageUrls.map((url, idx) => (
-                <div key={`existing-${idx}`} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
+                <div key={getStableKey(url, idx)} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
                   <img src={url} alt={`Existing ${idx + 1}`} className="w-full h-full object-cover" />
                   <button
                     type="button"
@@ -402,7 +482,7 @@ const PersonDialog = ({ open, onClose, person }: PersonDialogProps) => {
               ))}
 
               {imageFiles.map((file, idx) => (
-                <div key={`new-${idx}`} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
+                <div key={getStableKey(file, idx)} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
                   <img
                     src={URL.createObjectURL(file)}
                     alt={`New ${idx + 1}`}

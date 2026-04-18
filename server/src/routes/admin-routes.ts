@@ -13,20 +13,37 @@ const ADMIN_EMAIL = 'vijayalakshmijayakumar45@gmail.com';
 const LOG_PREFIX = '[AdminRoutes]';
 
 function requireAdmin(req: Request, res: Response, next: (err?: Error) => void): void {
-  const apiKey = req.headers['x-admin-api-key'];
-  if (apiKey !== process.env.ADMIN_API_KEY) {
-    console.error(`${LOG_PREFIX} Unauthorized access attempt from ${req.ip}`);
-    res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED', timestamp: new Date().toISOString() });
+  const apiKey = (req.headers['x-admin-api-key'] || req.headers['X-Admin-API-Key']) as string | undefined;
+  
+  console.log(`[AdminAuth] Headers received:`, Object.keys(req.headers));
+  console.log(`[AdminAuth] API key present:`, !!apiKey);
+  console.log(`[AdminAuth] Expected key:`, process.env.ADMIN_API_KEY ? 'yes' : 'no');
+  console.log(`[AdminAuth] Keys match:`, apiKey === process.env.ADMIN_API_KEY);
+  
+  if (!apiKey) {
+    console.error(`${LOG_PREFIX} No API key provided from ${req.ip}`);
+    res.status(401).json({ error: 'Unauthorized', code: 'NO_API_KEY', timestamp: new Date().toISOString() });
     return;
   }
+  
+  if (apiKey !== process.env.ADMIN_API_KEY) {
+    console.error(`${LOG_PREFIX} Invalid API key from ${req.ip}. Received: ${apiKey.substring(0, 8)}... Expected: ${process.env.ADMIN_API_KEY?.substring(0, 8)}...`);
+    res.status(401).json({ error: 'Unauthorized', code: 'INVALID_API_KEY', timestamp: new Date().toISOString() });
+    return;
+  }
+  
   next();
 }
 
 function getSupabase() {
-  return createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error(`Supabase not configured: URL=${!!supabaseUrl}, Key=${!!supabaseKey}`);
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
 }
 
 function formatBytes(bytes: number): number {
@@ -277,7 +294,7 @@ router.get('/backups/list', requireAdmin, async (_req: Request, res: Response) =
       console.error(`${LOG_PREFIX} Error fetching backups:`, error.message);
       throw error;
     }
-    
+     
     const formattedBackups = (backups || []).map(formatBackupHistoryEntry);
     
     const retentionStatus = await backupRetentionService.getRetentionStatus();
@@ -290,12 +307,12 @@ router.get('/backups/list', requireAdmin, async (_req: Request, res: Response) =
         backups: formattedBackups,
         retention: {
           policy: `${BACKUP_RETENTION_COUNT} backups (Auto-managed)`,
-          totalBackups: retentionStatus.totalBackups,
+          totalBackups: retentionStatus.totalSuccessfulBackups,
           backupsToKeep: retentionStatus.backupsToKeep,
           backupsToDelete: retentionStatus.backupsToDelete,
           isCompliant: retentionStatus.isCompliant,
-          newestBackup: retentionStatus.newestBackup,
-          oldestBackup: retentionStatus.oldestBackup
+          newestBackup: retentionStatus.newestSuccessfulBackup,
+          oldestBackup: retentionStatus.oldestSuccessfulBackup
         },
         totalSize: backupSizeInfo.totalSize,
         fileCount: backupSizeInfo.fileCount
@@ -329,12 +346,12 @@ router.post('/backups/cleanup', requireAdmin, async (req: Request, res: Response
         deletedFiles: result.deletedFiles.length,
         keptBackups: result.keptBackups,
         retentionCount: BACKUP_RETENTION_COUNT,
-        newTotalBackups: finalStatus.totalBackups,
+        newTotalBackups: finalStatus.totalSuccessfulBackups,
         isCompliant: finalStatus.isCompliant,
         errors: result.errors
       },
       message: result.success 
-        ? `Cleanup completed: ${result.deletedBackups} backups deleted. ${finalStatus.totalBackups}/${BACKUP_RETENTION_COUNT} backups remaining.`
+        ? `Cleanup completed: ${result.deletedBackups} backups deleted. ${finalStatus.totalSuccessfulBackups}/${BACKUP_RETENTION_COUNT} backups remaining.`
         : `Cleanup completed with ${result.errors.length} errors`,
       timestamp: new Date().toISOString()
     });
@@ -363,11 +380,11 @@ router.get('/backups/retention-status', requireAdmin, async (_req: Request, res:
           type: 'FIFO'
         },
         current: {
-          totalBackups: status.totalBackups,
+          totalBackups: status.totalSuccessfulBackups,
           backupsToKeep: status.backupsToKeep,
           backupsToDelete: status.backupsToDelete,
-          newestBackup: status.newestBackup,
-          oldestBackup: status.oldestBackup
+          newestBackup: status.newestSuccessfulBackup,
+          oldestBackup: status.oldestSuccessfulBackup
         },
         storage: {
           totalSize: sizeInfo.totalSize,
@@ -377,7 +394,7 @@ router.get('/backups/retention-status', requireAdmin, async (_req: Request, res:
           isCompliant: status.isCompliant,
           status: status.isCompliant ? 'COMPLIANT' : 'NEEDS_CLEANUP',
           message: status.isCompliant 
-            ? `All ${status.totalBackups} backups are within the retention policy of ${BACKUP_RETENTION_COUNT}`
+            ? `All ${status.totalSuccessfulBackups} backups are within the retention policy of ${BACKUP_RETENTION_COUNT}`
             : `${status.backupsToDelete} backups exceed the retention policy of ${BACKUP_RETENTION_COUNT}. Click "Cleanup Old Backups" to remove them.`
         }
       },
@@ -667,6 +684,70 @@ router.get('/dashboard', requireAdmin, async (_req: Request, res: Response) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`${LOG_PREFIX} Error fetching dashboard:`, errorMessage);
     res.status(500).json({ success: false, error: errorMessage, code: 'DASHBOARD_ERROR', timestamp: new Date().toISOString() });
+  }
+});
+
+router.post('/update-client-payment', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { profile_id, payment_status, is_profile_active } = req.body;
+
+    if (!profile_id) {
+      res.status(400).json({ success: false, error: 'Profile ID is required', code: 'MISSING_PROFILE_ID' });
+      return;
+    }
+
+    if (!['paid', 'non_paid', 'free'].includes(payment_status)) {
+      res.status(400).json({ success: false, error: 'Invalid payment status', code: 'INVALID_PAYMENT_STATUS' });
+      return;
+    }
+
+    console.log(`${LOG_PREFIX} Updating client payment status:`, {
+      profileId: profile_id,
+      paymentStatus: payment_status,
+      isProfileActive: is_profile_active,
+    });
+
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+      .from('client_profiles')
+      .update({
+        payment_status,
+        is_profile_active: is_profile_active ?? true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', profile_id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`${LOG_PREFIX} Error updating payment status:`, error);
+      res.status(500).json({ success: false, error: error.message, code: 'UPDATE_ERROR' });
+      return;
+    }
+
+    console.log(`${LOG_PREFIX} Payment status updated successfully:`, {
+      profileId: profile_id,
+      newPaymentStatus: payment_status,
+      updatedAt: data?.updated_at,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: data.id,
+        user_id: data.user_id,
+        payment_status: data.payment_status,
+        is_profile_active: data.is_profile_active,
+        updated_at: data.updated_at,
+      },
+      message: 'Payment status updated successfully',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`${LOG_PREFIX} Error updating payment status:`, errorMessage);
+    res.status(500).json({ success: false, error: errorMessage, code: 'UPDATE_ERROR', timestamp: new Date().toISOString() });
   }
 });
 

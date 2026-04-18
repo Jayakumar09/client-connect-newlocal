@@ -7,6 +7,14 @@ import { verifyZipArchive } from '../utils/zip.js';
 
 const router = express.Router();
 
+interface BackupListEntry {
+  name: string;
+  path: string;
+  size: number;
+  created: Date;
+  modified: Date;
+}
+
 function requireAdmin(req, res, next) {
   const apiKey = req.headers['x-admin-api-key'];
   if (apiKey !== process.env.ADMIN_API_KEY) {
@@ -26,8 +34,8 @@ router.post('/backup/create', async (req, res) => {
   } = req.body;
 
   const config = {
-    SUPABASE_URL: process.env.SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     TEMP_BACKUP_DIR: process.env.TEMP_BACKUP_DIR || './temp/backup',
     BACKUP_OUTPUT_DIR: process.env.BACKUP_OUTPUT_DIR || './backups',
@@ -93,8 +101,8 @@ router.post('/backup/verify', async (req, res) => {
   }
 
   const config = {
-    SUPABASE_URL: process.env.SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
     TEMP_BACKUP_DIR: process.env.TEMP_BACKUP_DIR || './temp/backup'
   };
 
@@ -127,8 +135,8 @@ router.post('/restore/verify', async (req, res) => {
   }
 
   const config = {
-    SUPABASE_URL: process.env.SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
     TEMP_BACKUP_DIR: process.env.TEMP_BACKUP_DIR || './temp/restore'
   };
 
@@ -171,8 +179,8 @@ router.post('/restore/run', async (req, res) => {
   }
 
   const config = {
-    SUPABASE_URL: process.env.SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     TEMP_BACKUP_DIR: process.env.TEMP_BACKUP_DIR || './temp/restore'
   };
@@ -229,7 +237,7 @@ router.get('/backup/list', async (req, res) => {
 
     const files = fs.readdirSync(backupDir)
       .filter(f => f.endsWith('.zip'))
-      .map(f => {
+      .map<BackupListEntry>(f => {
         const filePath = path.join(backupDir, f);
         const stat = fs.statSync(filePath);
         return {
@@ -240,7 +248,7 @@ router.get('/backup/list', async (req, res) => {
           modified: stat.mtime
         };
       })
-      .sort((a: any, b: any) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+      .sort((a, b) => b.modified.getTime() - a.modified.getTime());
 
     res.json({ success: true, backups: files });
   } catch (err) {

@@ -44,6 +44,8 @@ export interface RestoreReport {
   manifest: BackupManifest | null;
 }
 
+type RestorableRecord = Record<string, unknown> & { id?: string };
+
 export class RestoreService {
   private supabase: SupabaseClient | null = null;
   private tempDir: string;
@@ -55,8 +57,8 @@ export class RestoreService {
 
   private getSupabaseClient(): SupabaseClient {
     if (!this.supabase) {
-      const url = process.env.SUPABASE_URL;
-      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
       if (!url || !key) {
         throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment');
       }
@@ -279,7 +281,7 @@ export class RestoreService {
         continue;
       }
 
-      const records = tableData.records || [];
+      const records = (tableData.records || []) as RestorableRecord[];
 
       if (records.length === 0) {
         console.log(`[RestoreService] Table ${tableName}: No records to restore`);
@@ -325,24 +327,24 @@ export class RestoreService {
               if (existing) {
                 const { error } = await supabase
                   .from(tableName)
-                  .update(record as any)
+                  .update(record as never)
                   .eq('id', id);
                 if (error) throw error;
                 report.recordsUpdated++;
               } else {
                 const { error } = await supabase
                   .from(tableName)
-                  .insert(record as any);
+                  .insert(record as never);
                 if (error) throw error;
                 report.recordsInserted++;
               }
             } else {
-              const { error } = await supabase.from(tableName).insert(record as any);
+              const { error } = await supabase.from(tableName).insert(record as never);
               if (error) throw error;
               report.recordsInserted++;
             }
           } else if (mode === 'insert') {
-            const { error } = await supabase.from(tableName).insert(record as any);
+            const { error } = await supabase.from(tableName).insert(record as never);
             if (error) {
               if (error.code === '23505') {
                 report.recordsSkipped++;
@@ -533,14 +535,14 @@ export class RestoreService {
     console.log(`[RestoreService] Found backup: ${file.name} (${file.size} bytes)`);
 
     const dest = fs.createWriteStream(outputPath);
-    await drive.files.get({
+    const response = await drive.files.get({
       fileId: file.id!,
       alt: 'media'
     }, {
       responseType: 'stream'
-    }, (data: any) => {
-      data.pipe(dest);
     });
+
+    response.data.pipe(dest);
 
     return new Promise((resolve, reject) => {
       dest.on('close', () => {

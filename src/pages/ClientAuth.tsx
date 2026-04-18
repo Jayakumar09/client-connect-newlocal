@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { z } from "zod";
 import { Mail, Phone, Lock, KeyRound, Heart, Eye, EyeOff, Wand2 } from "lucide-react";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
+import { 
+  signUpClient, 
+  signInClient, 
+  sendPhoneOtp as authSendPhoneOtp, 
+  verifyPhoneOtp as authVerifyPhoneOtp, 
+  resetPassword as authResetPassword,
+  getCooldownStatus 
+} from "@/integrations/auth";
 
 const emailSignupSchema = z.object({
   email: z.string().trim().email({ message: "Invalid email address" }),
@@ -28,7 +36,10 @@ const emailSignupSchema = z.object({
 });
 
 const phoneSignupSchema = z.object({
-  phone: z.string().min(10, { message: "Invalid phone number" }),
+  phone: z.string()
+    .min(10, { message: "Phone number must be at least 10 digits" })
+    .max(10, { message: "Phone number must be exactly 10 digits" })
+    .regex(/^[6-9]\d{9}$/, { message: "Invalid Indian phone number. Must be 10 digits starting with 6-9" }),
   countryCode: z.string(),
   fullName: z.string().min(2, { message: "Name must be at least 2 characters" }),
   gender: z.enum(['male', 'female', 'other'], { required_error: "Gender is required" }),
@@ -50,6 +61,13 @@ const ClientAuth = () => {
   const [countryCode, setCountryCode] = useState("+91");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [pendingPhoneSignup, setPendingPhoneSignup] = useState<{
+    fullName: string;
+    gender: string;
+    dateOfBirth: string;
+    religion: string;
+    profileCreatedFor: string;
+  } | null>(null);
   
   // Profile fields
   const [fullName, setFullName] = useState("");
@@ -63,6 +81,25 @@ const ClientAuth = () => {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [actionBlocked, setActionBlocked] = useState(false);
+
+  const updateCooldown = useCallback(() => {
+    const status = getCooldownStatus();
+    if (status.client > 0) {
+      setCooldownSeconds(status.client);
+      setActionBlocked(true);
+    } else {
+      setCooldownSeconds(0);
+      setActionBlocked(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    updateCooldown();
+    const interval = setInterval(updateCooldown, 1000);
+    return () => clearInterval(interval);
+  }, [updateCooldown]);
 
   const generatePassword = () => {
     const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -90,18 +127,59 @@ const ClientAuth = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // Check if this is an admin user and redirect appropriately
+      console.log('[ClientAuth] Checking session on mount...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('[ClientAuth] Session check result:', { 
+        hasSession: !!session, 
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+        userEmail: session?.user?.email,
+        error: sessionError?.message
+      });
+      
+      // Only redirect if session actually exists and is valid
+      if (session && session.user) {
+        console.log('[ClientAuth] Session found, checking profile...');
         const isAdmin = session.user.email === "vijayalakshmijayakumar45@gmail.com";
-        navigate(isAdmin ? "/" : "/browse");
+        
+        const { data: profile, error: profileError } = await supabase
+          .from("client_profiles")
+          .select("id")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        
+        console.log('[ClientAuth] Profile lookup:', { 
+          hasProfile: !!profile, 
+          profileId: profile?.id,
+          error: profileError?.message
+        });
+        
+        if (isAdmin) {
+          console.log('[ClientAuth] Admin user, navigating to /dashboard');
+          navigate("/dashboard");
+        } else if (profile) {
+          console.log('[ClientAuth] Profile exists, navigating to /browse');
+          navigate("/browse");
+        } else {
+          console.log('[ClientAuth] No profile, navigating to /client-profile');
+          navigate("/client-profile");
+        }
+      } else {
+        console.log('[ClientAuth] No session - staying on login page');
       }
+      // If no session, stay on login page (do nothing)
     };
     checkSession();
   }, [navigate]);
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (actionBlocked) {
+      toast.error(`Please wait ${cooldownSeconds} seconds before trying again`);
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -114,28 +192,34 @@ const ClientAuth = () => {
         religion, 
         profileCreatedFor 
       });
+
+      const result = await signUpClient(
+        validated.email,
+        validated.password,
+        {
+          fullName: validated.fullName,
+          gender: validated.gender,
+          dateOfBirth: validated.dateOfBirth,
+          religion: validated.religion,
+          profileCreatedFor: validated.profileCreatedFor,
+        }
+      );
+
+      if (!result.success) {
+        toast.error(result.error || 'Registration failed');
+        setLoading(false);
+        updateCooldown();
+        return;
+      }
+
+      if (result.needsProfileCreation) {
+        toast.success('Account created! Please complete your profile...');
+        navigate('/client-profile');
+      } else {
+        toast.success('Welcome! Redirecting...');
+        navigate('/browse');
+      }
       
-      const redirectUrl = `${window.location.origin}/browse`;
-
-      const { error } = await supabase.auth.signUp({
-        email: validated.email,
-        password: validated.password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            full_name: validated.fullName,
-            gender: validated.gender,
-            date_of_birth: validated.dateOfBirth,
-            religion: validated.religion,
-            profile_created_for: validated.profileCreatedFor,
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      toast.success("Account created successfully! You can now sign in.");
-      // Reset form
       setEmail("");
       setPassword("");
       setFullName("");
@@ -146,8 +230,8 @@ const ClientAuth = () => {
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
-      } else if (error instanceof Error) {
-        toast.error(error.message);
+      } else {
+        toast.error('Registration failed. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -156,22 +240,39 @@ const ClientAuth = () => {
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (actionBlocked) {
+      toast.error(`Please wait ${cooldownSeconds} seconds before trying again`);
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      console.log('[ClientAuth] Calling signInClient for:', email);
+      const result = await signInClient(email, password);
+      console.log('[ClientAuth] signInClient result:', result);
 
-      if (error) throw error;
-
-      toast.success("Signed in successfully!");
-      navigate("/browse");
-    } catch (error) {
-      if (error instanceof Error) {
-        toast.error(error.message);
+      if (!result.success) {
+        toast.error(result.error || 'Login failed');
+        setLoading(false);
+        updateCooldown();
+        return;
       }
+
+      toast.success('Signed in successfully!');
+      console.log('[ClientAuth] Login success, navigating...');
+      
+      if (result.needsProfileCreation) {
+        console.log('[ClientAuth] Navigating to /client-profile');
+        navigate('/client-profile');
+      } else {
+        console.log('[ClientAuth] Navigating to /browse');
+        navigate('/browse');
+      }
+    } catch (error) {
+      console.error('[ClientAuth] Login exception:', error);
+      toast.error('Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -179,6 +280,12 @@ const ClientAuth = () => {
 
   const handlePhoneSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (actionBlocked) {
+      toast.error(`Please wait ${cooldownSeconds} seconds before trying again`);
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -194,27 +301,51 @@ const ClientAuth = () => {
       
       const fullPhone = `${validated.countryCode}${validated.phone}`;
 
-      const { error } = await supabase.auth.signInWithOtp({
+      // Check if phone number already exists in client_profiles
+      const { data: existingPhoneProfile, error: checkError } = await supabase
+        .from("client_profiles")
+        .select("id, phone_number")
+        .eq("phone_number", fullPhone)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("[ClientAuth] Error checking existing phone:", checkError);
+      }
+
+      if (existingPhoneProfile) {
+        toast.error("An account with this phone number already exists. Please sign in instead.");
+        setLoading(false);
+        return;
+      }
+
+      const { error: otpError } = await supabase.auth.signInWithOtp({
         phone: fullPhone,
-        options: {
-          data: {
-            full_name: validated.fullName,
-            gender: validated.gender,
-            date_of_birth: validated.dateOfBirth,
-            religion: validated.religion,
-            profile_created_for: validated.profileCreatedFor,
-          },
-        },
       });
 
-      if (error) throw error;
+      if (otpError) {
+        console.error("[ClientAuth] OTP send error:", {
+          message: otpError.message,
+          status: otpError.status,
+          code: otpError.code,
+        });
+        throw otpError;
+      }
 
+      // Store pending signup data for profile creation after OTP verification
+      setPendingPhoneSignup({
+        fullName: validated.fullName,
+        gender: validated.gender,
+        dateOfBirth: validated.dateOfBirth,
+        religion: validated.religion,
+        profileCreatedFor: validated.profileCreatedFor,
+      });
       setOtpSent(true);
       toast.success("OTP sent to your phone!");
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
       } else if (error instanceof Error) {
+        console.error("[ClientAuth] Phone signup error:", error.message);
         toast.error(error.message);
       }
     } finally {
@@ -253,19 +384,118 @@ const ClientAuth = () => {
     try {
       const fullPhone = `${countryCode}${phone}`;
 
-      const { error } = await supabase.auth.verifyOtp({
+      const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
         phone: fullPhone,
         token: otp,
         type: 'sms',
       });
 
-      if (error) throw error;
+      if (otpError) {
+        console.error("[ClientAuth] OTP verification error:", {
+          message: otpError.message,
+          status: otpError.status,
+          code: otpError.code,
+        });
+        throw otpError;
+      }
+
+      console.log("[ClientAuth] OTP verified, user:", otpData.user?.id);
+
+      // If this is a signup (has pending data), create the profile
+      if (pendingPhoneSignup && otpData.user) {
+        // Check if this phone already has a profile
+        const { data: existingPhoneProfile, error: checkError } = await supabase
+          .from("client_profiles")
+          .select("id, phone_number")
+          .eq("phone_number", fullPhone)
+          .maybeSingle();
+
+        if (checkError) {
+          console.error("[ClientAuth] Error checking existing phone:", checkError);
+        }
+
+        if (existingPhoneProfile) {
+          toast.error("An account with this phone number already exists. Please sign in instead.");
+          setLoading(false);
+          setOtpSent(false);
+          setOtp("");
+          setPendingPhoneSignup(null);
+          return;
+        }
+
+        // Check if user already has a profile (unique constraint)
+        const { data: existingUserProfile, error: userCheckError } = await supabase
+          .from("client_profiles")
+          .select("id")
+          .eq("user_id", otpData.user.id)
+          .maybeSingle();
+
+        if (userCheckError) {
+          console.error("[ClientAuth] Error checking user profile:", userCheckError);
+        }
+
+        if (existingUserProfile) {
+          toast.success("Verified! You already have a profile. Redirecting...");
+          navigate("/client-profile");
+          setPendingPhoneSignup(null);
+          return;
+        }
+
+        // Now insert the profile with valid session
+        const { error: profileError } = await supabase
+          .from("client_profiles")
+          .insert({
+            user_id: otpData.user.id,
+            full_name: pendingPhoneSignup.fullName,
+            phone_number: fullPhone,
+            country_code: countryCode,
+            gender: pendingPhoneSignup.gender as "male" | "female" | "other",
+            date_of_birth: pendingPhoneSignup.dateOfBirth,
+            religion: pendingPhoneSignup.religion as "hindu" | "muslim" | "christian" | "sikh" | "buddhist" | "jain" | "other",
+            profile_created_for: pendingPhoneSignup.profileCreatedFor as "self" | "parents" | "siblings" | "relatives" | "friends",
+            country: "India",
+            is_profile_active: true,
+            show_phone_number: false,
+            payment_status: "free",
+            created_by: "client",
+          });
+
+        if (profileError) {
+          console.error("[ClientAuth] Profile creation error details:", {
+            message: profileError.message,
+            details: profileError.details,
+            hint: profileError.hint,
+            code: profileError.code,
+          });
+          
+          if (profileError.code === '23505') {
+            toast.error("A profile already exists for this account. Redirecting...");
+            navigate("/client-profile");
+          } else {
+            toast.error(`Failed to create profile: ${profileError.message}`);
+          }
+        } else {
+          console.log("[ClientAuth] Phone signup profile created successfully");
+          toast.success("Profile created successfully!");
+        }
+        
+        setPendingPhoneSignup(null);
+      } else if (otpData.user) {
+        // Phone sign-in (no pending signup data)
+        toast.success("Verified successfully!");
+        navigate("/client-profile");
+        return;
+      }
 
       toast.success("Verified successfully!");
-      navigate("/browse");
+      navigate("/client-profile");
     } catch (error) {
       if (error instanceof Error) {
+        console.error("[ClientAuth] OTP verification error:", error.message);
         toast.error(error.message);
+      } else {
+        console.error("[ClientAuth] Unknown OTP error:", error);
+        toast.error("Verification failed. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -308,13 +538,11 @@ const ClientAuth = () => {
         <CardHeader className="space-y-4 text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-pink-100/50 via-purple-100/50 to-rose-100/50 dark:from-pink-900/20 dark:via-purple-900/20 dark:to-rose-900/20" />
           <div className="relative">
-            <div className="mx-auto mb-3 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900/50 dark:to-purple-900/50 rounded-full p-5 w-fit shadow-lg">
-              <img 
-                src={logoImage}
-                alt="Sri Lakshmi Mangalya Malai" 
-                className="w-20 h-20 mx-auto object-contain"
-              />
-            </div>
+            <img 
+              src={BRAND_LOGO}
+              alt="Sri Lakshmi Mangalya Malai" 
+              className="h-16 w-auto mx-auto mb-3 object-contain"
+            />
             <div className="flex items-center justify-center gap-2 mb-2">
               <Heart className="w-6 h-6 text-pink-500 dark:text-pink-400 fill-pink-500 dark:fill-pink-400" />
               <CardTitle className="text-[32px] font-cursive font-semibold uppercase text-center bg-gradient-to-r from-pink-600 via-purple-600 to-rose-600 dark:from-pink-400 dark:via-purple-400 dark:to-rose-400 bg-clip-text text-transparent">

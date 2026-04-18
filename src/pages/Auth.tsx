@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { toast } from "sonner";
 import { z } from "zod";
 import { Users, Lock, KeyRound, Eye, EyeOff, Wand2 } from "lucide-react";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
+import { isAdminApp } from "@/lib/config";
 
 const ADMIN_EMAIL = "vijayalakshmijayakumar45@gmail.com";
 
@@ -71,7 +72,12 @@ const Auth = () => {
       if (event === "PASSWORD_RECOVERY") {
         setIsRecoveryMode(true);
       } else if (event === "SIGNED_IN" && !isRecoveryMode) {
-        navigate("/dashboard");
+        // Redirect based on current host
+        if (isAdminApp()) {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       }
     });
 
@@ -83,7 +89,12 @@ const Auth = () => {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const type = hashParams.get('type');
         if (type !== 'recovery') {
-          navigate("/dashboard");
+          // Redirect based on current host
+          if (isAdminApp()) {
+            navigate("/admin/dashboard");
+          } else {
+            navigate("/dashboard");
+          }
         }
       }
     };
@@ -267,13 +278,11 @@ const Auth = () => {
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
         <Card className="w-full max-w-md border-slate-200 dark:border-slate-800 shadow-2xl bg-white dark:bg-slate-900">
           <CardHeader className="space-y-4 text-center border-b border-slate-100 dark:border-slate-800 pb-8">
-            <div className="mx-auto mb-3 bg-slate-100 dark:bg-slate-800 rounded-2xl p-4 w-fit">
-              <img 
-                src={logoImage}
-                alt="Sri Lakshmi Mangalya Malai" 
-                className="w-20 h-20 mx-auto object-contain"
-              />
-            </div>
+            <img 
+              src={BRAND_LOGO}
+              alt="Sri Lakshmi Mangalya Malai" 
+              className="h-14 w-auto mx-auto mb-3 object-contain"
+            />
             <div className="space-y-2">
               <CardTitle className="text-2xl font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">
                 Reset Password
@@ -363,13 +372,11 @@ const Auth = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
       <Card className="w-full max-w-md border-slate-200 dark:border-slate-800 shadow-2xl bg-white dark:bg-slate-900">
         <CardHeader className="space-y-4 text-center border-b border-slate-100 dark:border-slate-800 pb-8">
-          <div className="mx-auto mb-3 bg-slate-100 dark:bg-slate-800 rounded-2xl p-4 w-fit">
-            <img 
-              src={logoImage}
-              alt="Sri Lakshmi Mangalya Malai" 
-              className="w-20 h-20 mx-auto object-contain"
-            />
-          </div>
+          <img 
+            src={BRAND_LOGO}
+            alt="Sri Lakshmi Mangalya Malai" 
+            className="h-14 w-auto mx-auto mb-3 object-contain"
+          />
           <div className="space-y-2">
             <CardTitle className="text-2xl font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">
               Admin Portal

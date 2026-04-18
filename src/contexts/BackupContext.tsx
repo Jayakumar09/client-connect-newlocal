@@ -1,13 +1,13 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Tables } from '@/integrations/supabase/types';
+import { getAppConfig } from '@/lib/config';
+import { adminFetch } from '@/lib/api';
 
 type BackupStatus = Tables<'backup_logs'>['status'];
 type BackupType = Tables<'backup_logs'>['type'];
 
 const LOG_PREFIX = '[BackupContext]';
-const BACKUP_API_URL = import.meta.env.VITE_BACKUP_API_URL || 'http://localhost:3001';
-const ADMIN_API_KEY = import.meta.env.VITE_ADMIN_API_KEY || '';
 
 export interface BackupLog {
   id: string;
@@ -160,13 +160,12 @@ function determineStatus(lastBackup: BackupLog | null, isRunning: boolean): 'idl
 
 export function BackupProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<BackupState>(initialState);
+  const config = getAppConfig();
 
   const fetchBackupSummary = useCallback(async (): Promise<BackupSummary | null> => {
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] fetchBackupSummary - Fetching backup summary`);
     try {
-      const response = await fetch(`${BACKUP_API_URL}/api/admin/backups/summary`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
+      const response = await adminFetch('/api/admin/backups/summary');
 
       if (!response.ok) {
         throw new Error(`Failed to fetch backup summary: ${response.status}`);
@@ -197,9 +196,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
   const fetchBackupHistory = useCallback(async (limit = 50): Promise<BackupHistoryEntry[]> => {
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] fetchBackupHistory - Fetching backup history (limit=${limit})`);
     try {
-      const response = await fetch(`${BACKUP_API_URL}/api/admin/backups/history?limit=${limit}`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
+      const response = await adminFetch(`/api/admin/backups/history?limit=${limit}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch backup history: ${response.status}`);
@@ -218,9 +215,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
   const refreshBackupStatus = useCallback(async () => {
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] refreshBackupStatus - Refreshing backup status`);
     try {
-      const response = await fetch(`${BACKUP_API_URL}/api/backup/status`, {
-        headers: { 'X-Admin-API-Key': ADMIN_API_KEY }
-      });
+      const response = await adminFetch('/api/backup/status');
 
       if (!response.ok) {
         throw new Error(`Failed to refresh backup status: ${response.status}`);
@@ -277,11 +272,10 @@ export function BackupProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, status: 'running', isRunning: true, currentProgress: null }));
 
     try {
-      const response = await fetch(`${BACKUP_API_URL}/api/backup/trigger`, {
+      const response = await adminFetch('/api/backup/trigger', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-API-Key': ADMIN_API_KEY
         },
         body: JSON.stringify({ force })
       });
@@ -367,11 +361,10 @@ export function BackupProvider({ children }: { children: ReactNode }) {
   const cleanupOldBackups = useCallback(async (): Promise<CleanupResponse | null> => {
     console.log(`${LOG_PREFIX} [${new Date().toISOString()}] cleanupOldBackups - Running cleanup`);
     try {
-      const response = await fetch(`${BACKUP_API_URL}/api/admin/backups/cleanup`, {
+      const response = await adminFetch('/api/admin/backups/cleanup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-API-Key': ADMIN_API_KEY
         }
       });
 
@@ -403,14 +396,18 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     console.log(`${LOG_PREFIX} Initializing backup context`);
-    refreshAdminMetrics();
-
-    const interval = setInterval(refreshBackupStatus, 60000);
-    return () => {
-      console.log(`${LOG_PREFIX} Cleaning up backup context`);
-      clearInterval(interval);
-    };
-  }, [refreshAdminMetrics, refreshBackupStatus]);
+    // Only fetch backup status for admin users in production
+    // Skip for client-auth page and preview deployments to avoid 404s
+    if (config.isAdmin && config.isProduction) {
+      refreshAdminMetrics();
+      const interval = setInterval(refreshBackupStatus, 60000);
+      return () => {
+        console.log(`${LOG_PREFIX} Cleaning up backup context`);
+        clearInterval(interval);
+      };
+    }
+    console.log(`${LOG_PREFIX} Skipping backup status fetch for client/preview mode`);
+  }, [config.isAdmin, config.isProduction, refreshAdminMetrics, refreshBackupStatus]);
 
   return (
     <BackupContext.Provider

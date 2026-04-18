@@ -1,0 +1,40 @@
+setup:
+  name: Determine Deployment Scope
+  runs-on: ubuntu-latest
+  outputs:
+    deploy_frontend: ${{ steps.filter.outputs.frontend }}
+    deploy_backend: ${{ steps.filter.outputs.backend }}
+
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Check file changes
+      id: filter
+      uses: dorny/paths-filter@v3
+      with:
+        filters: |
+          frontend:
+            - '.github/workflows/**'
+            - 'vite.admin.config.ts'
+            - 'vite.client.config.ts'
+            - 'admin/**'
+            - 'client/**'
+            - 'src/**'
+            - 'public/**'
+            - 'package.json'
+            - 'package-lock.json'
+            - 'wrangler-admin.toml'
+            - 'wrangler-client.toml'
+            - 'scripts/**'
+          backend:
+            - 'server/**'
+            - 'package.json'
+            - 'package-lock.json'
+
+    - name: Show changed files
+      run: |
+        echo "Frontend changed: ${{ steps.filter.outputs.frontend }}"
+        echo "Backend changed: ${{ steps.filter.outputs.backend }}"

@@ -1,0 +1,254 @@
+name: Deploy
+
+# ============================================================
+# DEPLOYMENT WORKFLOW
+# ============================================================
+# This workflow deploys:
+#   1. Frontend (admin + client apps) → Cloudflare Pages
+#   2. Backend (server) → Render
+#
+# DEPLOYMENT TRIGGERS:
+#   - Push to main branch
+#   - Manual workflow dispatch
+#
+# PATH FILTERING:
+#   - Frontend files changed → Deploys to Cloudflare Pages
+#   - Backend /server files changed → Deploys to Render
+#   - Shared config files changed → Deploys both
+#
+# SECRETS REQUIRED (add in GitHub repo Settings → Secrets):
+#   - CLOUDFLARE_API_TOKEN
+#   - CLOUDFLARE_ACCOUNT_ID
+#   - CLOUDFLARE_PROJECT_NAME (optional, for specific project)
+#   - RENDER_DEPLOY_HOOK_URL
+# ============================================================
+
+on:
+  # Trigger on push to main
+  push:
+    branches:
+      - main
+
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      deploy_frontend:
+        description: 'Deploy Frontend (Cloudflare)'
+        required: false
+        default: 'true'
+        type: boolean
+      deploy_backend:
+        description: 'Deploy Backend (Render)'
+        required: false
+        default: 'true'
+        type: boolean
+
+# ============================================================
+# CONCURRENCY CONTROL
+# ============================================================
+# Cancel any in-progress runs for the same branch
+# Ensures only the latest push is deployed
+# ============================================================
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ============================================================
+# ENVIRONMENT
+# ============================================================
+env:
+  NODE_VERSION: '20'
+
+# ============================================================
+# JOBS
+# ============================================================
+jobs:
+  # ------------------------------------------------------------
+  # JOB: Determine what to deploy
+  # ------------------------------------------------------------
+  # This job checks which files changed and decides
+  # whether to deploy frontend, backend, or both.
+  # ------------------------------------------------------------
+  setup:
+    name: Determine Deployment Scope
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_frontend: ${{ steps.filter.outputs.frontend }}
+      deploy_backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check file changes
+        id: filter
+        uses: dorny/paths-filter@v2
+        with:
+          # Enable two-phase detection for changed files
+          base: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
+          filters: |
+            # Frontend: admin/client builds, shared configs
+            frontend:
+              - '.github/workflows/**'
+              - 'vite.admin.config.ts'
+              - 'vite.client.config.ts'
+              - 'admin/**'
+              - 'client/**'
+              - 'src/**'
+              - 'public/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'wrangler-admin.toml'
+              - 'wrangler-client.toml'
+              - 'scripts/**'
+
+            # Backend: server directory
+            backend:
+              - 'server/**'
+              - 'package.json'
+              - 'package-lock.json'
+
+      # Debug output (only runs if workflow has debug enabled)
+      - name: Show changed files
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Frontend changed: ${{ steps.filter.outputs.frontend }}"
+          echo "Backend changed: ${{ steps.filter.outputs.backend }}"
+
+
+
+  # ------------------------------------------------------------
+  # JOB: Deploy Frontend to Cloudflare Pages
+  # ------------------------------------------------------------
+  # Deploys both admin and client apps to Cloudflare Pages
+  # using Wrangler CLI.
+  #
+  # Project names (configure in Cloudflare Dashboard):
+  #   - vijayalakshmi-admin
+  #   - vijayalakshmi-client
+  # ------------------------------------------------------------
+  deploy-frontend:
+    name: Deploy Frontend to Cloudflare
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.deploy_frontend == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Build admin app
+      - name: Build Admin App
+        run: npm run build:admin
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      # Build client app
+      - name: Build Client App
+        run: npm run build:client
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      # Deploy admin to Cloudflare Pages
+      - name: Deploy Admin to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist/admin --project-name=vijayalakshmi-admin --verbose
+
+      # Deploy client to Cloudflare Pages
+      - name: Deploy Client to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist/client --project-name=vijayalakshmi-client --verbose
+
+      - name: Deployment Summary
+        run: |
+          echo "✅ Frontend deployed successfully!"
+          echo "   Admin: https://admin.vijayalakshmiboyarmatrimony.com"
+          echo "   Client: https://app.vijayalakshmiboyarmatrimony.com"
+
+  # ------------------------------------------------------------
+  # JOB: Deploy Backend to Render
+  # ------------------------------------------------------------
+  # Triggers a deploy on Render using the Deploy Hook URL.
+  # The hook URL is stored in GitHub Secrets and should look like:
+  # https://api.render.com/deploy?srvid=xxx&key=xxx
+  # ------------------------------------------------------------
+  deploy-backend:
+    name: Deploy Backend to Render
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.deploy_backend == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify server directory exists
+        run: |
+          if [ -d "server" ]; then
+            echo "✅ Server directory found"
+          else
+            echo "❌ Server directory not found"
+            exit 1
+          fi
+
+      - name: Trigger Render Deploy
+        run: |
+          echo "🔄 Triggering Render deployment..."
+          RESPONSE=$(curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+          echo "Response: $RESPONSE"
+
+      - name: Wait for deployment
+        run: |
+          echo "⏳ Waiting 30 seconds for Render to start deployment..."
+          sleep 30
+          echo "✅ Render deployment triggered!"
+          echo ""
+          echo "📋 Check deployment status at: https://dashboard.render.com"
+
+  # ------------------------------------------------------------
+  # JOB: Full Deployment Complete
+  # ------------------------------------------------------------
+  # This job runs after both deployments complete.
+  # It only runs if both jobs were executed.
+  # ------------------------------------------------------------
+  complete:
+    name: Deployment Complete
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-frontend, deploy-backend]
+    if: |
+      always() &&
+      needs.setup.outputs.deploy_frontend == 'true' &&
+      needs.setup.outputs.deploy_backend == 'true' &&
+      !contains(needs.deploy-frontend.result, 'failure') &&
+      !contains(needs.deploy-backend.result, 'failure')
+
+    steps:
+      - name: Deployment Success
+        run: |
+          echo "🎉 ============================================"
+          echo "   FULL DEPLOYMENT COMPLETED SUCCESSFULLY!"
+          echo "================================================"
+          echo ""
+          echo "📱 Admin App: https://admin.vijayalakshmiboyarmatrimony.com"
+          echo "👤 Client App: https://app.vijayalakshmiboyarmatrimony.com"
+          echo "⚙️  Backend API: https://matrimony-backend-8hk0.onrender.com"
+          echo ""
+          echo "⏱️  Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"

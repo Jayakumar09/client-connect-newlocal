@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { BackupManifest } from '../types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -48,7 +48,7 @@ function parseArgs(): VerifyOptions {
 
 async function verifyFromManifest(
   manifest: BackupManifest,
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   options: VerifyOptions
 ): Promise<void> {
   console.log('\n========================================');
@@ -139,9 +139,9 @@ async function verifyFromFile(filePath: string, options: VerifyOptions): Promise
         .on('error', reject);
     });
 
-    const supabase: any = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const supabase = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.VITE_SUPABASE_ANON_KEY!
     );
 
     await verifyFromManifest(manifest, supabase, options);

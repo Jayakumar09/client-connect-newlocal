@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import {
   User
 } from "lucide-react";
 import { toast } from "sonner";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 
@@ -54,11 +54,39 @@ const AdminPayments = () => {
   const [activeTab, setActiveTab] = useState("pending");
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    checkAuthAndFetch();
+  const fetchPayments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: paymentsData, error: payError } = await supabase
+        .from("payments")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (payError) throw payError;
+      
+      const userIds = [...new Set(paymentsData?.map(p => p.user_id) || [])];
+      const { data: profiles } = await supabase
+        .from("client_profiles")
+        .select("user_id, full_name, phone_number, email")
+        .in("user_id", userIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      
+      const enrichedPayments: PaymentWithProfile[] = paymentsData?.map(p => ({
+        ...p,
+        client_profiles: profileMap.get(p.user_id) || undefined
+      })) || [];
+
+      setPayments(enrichedPayments);
+    } catch (error) {
+      console.error("Error fetching payments:", error);
+      toast.error("Failed to load payments");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const checkAuthAndFetch = async () => {
+  const checkAuthAndFetch = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       navigate("/auth");
@@ -80,41 +108,11 @@ const AdminPayments = () => {
     }
 
     await fetchPayments();
-  };
+  }, [fetchPayments, navigate]);
 
-  const fetchPayments = async () => {
-    setLoading(true);
-    try {
-      // Fetch payments
-      const { data: paymentsData, error: payError } = await supabase
-        .from("payments")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (payError) throw payError;
-      
-      // Fetch client profiles separately
-      const userIds = [...new Set(paymentsData?.map(p => p.user_id) || [])];
-      const { data: profiles } = await supabase
-        .from("client_profiles")
-        .select("user_id, full_name, phone_number, email")
-        .in("user_id", userIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-      
-      const enrichedPayments: PaymentWithProfile[] = paymentsData?.map(p => ({
-        ...p,
-        client_profiles: profileMap.get(p.user_id) || undefined
-      })) || [];
-
-      setPayments(enrichedPayments);
-    } catch (error) {
-      console.error("Error fetching payments:", error);
-      toast.error("Failed to load payments");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    void checkAuthAndFetch();
+  }, [checkAuthAndFetch]);
 
   const handleVerifyPayment = async (paymentId: string, subscriptionId: string | null, userId: string, planType: string) => {
     setProcessingId(paymentId);
@@ -256,7 +254,7 @@ const AdminPayments = () => {
       <header className="bg-primary text-primary-foreground shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-3">
-            <img src={logoImage} alt="Sri Lakshmi Mangalya Mahal" className="h-12 w-auto" />
+            <img src={BRAND_LOGO} alt="Sri Lakshmi Mangalya Mahal" className="h-12 w-auto" />
             <span className="text-xl font-bold hidden sm:inline">PAYMENT VERIFICATION</span>
           </Link>
           <div className="flex items-center gap-3">
@@ -327,6 +325,11 @@ const AdminPayments = () => {
                                 <h3 className="font-semibold text-lg">
                                   {payment.client_profiles?.full_name || "Unknown User"}
                                 </h3>
+                                {payment.client_profiles?.profile_id && (
+                                  <p className="text-xs text-muted-foreground font-mono">
+                                    {payment.client_profiles.profile_id}
+                                  </p>
+                                )}
                                 <div className="text-sm text-muted-foreground space-y-1">
                                   {payment.client_profiles?.phone_number && (
                                     <p>📞 {payment.client_profiles.phone_number}</p>

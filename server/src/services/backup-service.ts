@@ -39,8 +39,8 @@ export class BackupService {
 
   private getSupabaseClient(): SupabaseClient {
     if (!this.supabase) {
-      const url = process.env.SUPABASE_URL;
-      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
       if (!url || !key) {
         throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment');
       }
@@ -1014,7 +1014,7 @@ This archive contains database records and storage files for disaster recovery.
 
 ## Restore Steps
 1. Extract this ZIP to a local directory
-2. Configure environment variables (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+2. Configure environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
 3. Run: npm run restore:local -- --file ./backup-{{BACKUP_DATE}}.zip
 
 For full instructions, see the main RESTORE_README.md in the server/scripts directory.

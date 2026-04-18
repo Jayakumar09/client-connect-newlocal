@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
 export interface ShortlistedProfile {
@@ -9,9 +10,11 @@ export interface ShortlistedProfile {
   created_at: string;
 }
 
+type ClientProfile = Tables<'client_profiles'>;
+
 export const useShortlist = () => {
   const [shortlistedIds, setShortlistedIds] = useState<Set<string>>(new Set());
-  const [shortlistedProfiles, setShortlistedProfiles] = useState<any[]>([]);
+  const [shortlistedProfiles, setShortlistedProfiles] = useState<ClientProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 

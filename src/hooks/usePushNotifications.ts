@@ -8,18 +8,7 @@ export const usePushNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    // Check if push notifications are supported
-    const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-    setIsSupported(supported);
-    
-    if (supported) {
-      setPermission(Notification.permission);
-      checkSubscription();
-    }
-  }, []);
-
-  const checkSubscription = async () => {
+  const checkSubscription = useCallback(async () => {
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
@@ -27,9 +16,9 @@ export const usePushNotifications = () => {
     } catch (error) {
       console.error('Error checking subscription:', error);
     }
-  };
+  }, []);
 
-  const registerServiceWorker = async () => {
+  const registerServiceWorker = useCallback(async () => {
     if (!('serviceWorker' in navigator)) {
       throw new Error('Service workers not supported');
     }
@@ -44,9 +33,9 @@ export const usePushNotifications = () => {
       console.error('Service Worker registration failed:', error);
       throw error;
     }
-  };
+  }, []);
 
-  const requestPermission = async () => {
+  const requestPermission = useCallback(async () => {
     if (!isSupported) {
       toast.error('Push notifications are not supported in this browser');
       return false;
@@ -72,7 +61,17 @@ export const usePushNotifications = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isSupported]);
+
+  useEffect(() => {
+    const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    setIsSupported(supported);
+    
+    if (supported) {
+      setPermission(Notification.permission);
+      void checkSubscription();
+    }
+  }, [checkSubscription]);
 
   const subscribe = useCallback(async () => {
     if (!isSupported) return null;
@@ -110,7 +109,7 @@ export const usePushNotifications = () => {
     } finally {
       setLoading(false);
     }
-  }, [isSupported]);
+  }, [isSupported, registerServiceWorker, requestPermission]);
 
   const unsubscribe = useCallback(async () => {
     setLoading(true);

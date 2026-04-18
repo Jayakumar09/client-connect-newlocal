@@ -1,0 +1,53 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: Determine Deployment Scope
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine base commit
+        id: base
+        run: |
+          if "${{ github.event.before }}" == "0000000000000000000000000000000000000000"; then
+            echo "No previous commit, comparing against empty tree"
+            echo "base_sha=$(git hash-object -t tree /dev/null)" >> $GITHUB_OUTPUT
+          else
+            echo "base_sha=${{ github.event.before }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check file changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          base: ${{ steps.base.outputs.base_sha }}
+          filters: |
+            backend:
+              - 'server/**'
+              - 'package.json'
+              - 'package-lock.json'
+
+  deploy-backend:
+    name: Deploy Backend
+    needs: setup
+    if: needs.setup.outputs.deploy_backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

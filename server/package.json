@@ -1,16 +1,22 @@
 {
   "name": "matrimony-backup-server",
   "version": "1.0.0",
-  "description": "Backup server for Matrimony app - handles database and file backups to Google Drive",
+  "description": "Backend API server for Matrimony app - handles database backups, chat, and admin functions",
   "main": "dist/index.js",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "prestart": "echo 'Build already done in deploy'",
+    "postinstall": "npm run build",
     "backup:manual": "tsx src/scripts/manual-backup.ts",
     "backup:cleanup": "tsx src/scripts/cleanup-old-backups.ts",
     "backup:retention-cleanup": "tsx src/scripts/cleanup-backups.ts",
+    "backup:gdrive": "tsx src/scripts/google-drive-backup.ts",
     "scheduler": "tsx src/scripts/scheduler.ts",
     "restore:local": "node scripts/runRestore.js --file",
     "restore:drive": "tsx src/scripts/restore-backup.ts",
@@ -19,11 +25,13 @@
     "backup:verify": "node scripts/runBackup.js --verify",
     "restore:db": "node scripts/runRestore.js --file",
     "restore:storage": "node scripts/runRestore.js --file",
-    "restore:full": "node scripts/runRestore.js --file"
+    "restore:full": "node scripts/runRestore.js --file",
+    "migrate:profile-id": "tsx src/scripts/run-profile-id-migration.ts"
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",
     "@supabase/supabase-js": "^2.76.1",
+    "@types/multer": "^2.1.0",
     "@types/pg": "^8.20.0",
     "adm-zip": "^0.5.17",
     "archiver": "^7.0.1",
@@ -32,6 +40,7 @@
     "express": "^5.1.0",
     "fs-extra": "^11.2.0",
     "googleapis": "^144.0.0",
+    "multer": "^2.1.1",
     "node-cron": "^3.0.3",
     "pg": "^8.20.0",
     "unzipper": "^0.12.3",

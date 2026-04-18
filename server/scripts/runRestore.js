@@ -237,8 +237,8 @@ async function runSupabaseRestore(options) {
   console.log('='.repeat(60) + '\n');
 
   const config = {
-    SUPABASE_URL: process.env.SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     TEMP_BACKUP_DIR: process.env.TEMP_BACKUP_DIR || './temp/restore'
   };

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, HelpCircle, Phone, Mail, MapPin, Clock } from "lucide-react";
-import logoImage from "@/assets/sri-lakshmi-logo.png";
+import { BRAND_LOGO } from "@/lib/branding";
 
 const Help = () => {
   const navigate = useNavigate();
@@ -45,7 +45,7 @@ const Help = () => {
       <header className="bg-primary text-primary-foreground shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoImage} alt="Sri Lakshmi Mangalya Mahal" className="h-12 w-auto" />
+            <img src={BRAND_LOGO} alt="Sri Lakshmi Mangalya Mahal" className="h-12 w-auto" />
             <span className="text-xl font-bold hidden sm:inline">HELP & SUPPORT</span>
           </div>
           <Button variant="secondary" size="sm" onClick={() => navigate(isAdmin ? "/dashboard" : "/browse")}>
